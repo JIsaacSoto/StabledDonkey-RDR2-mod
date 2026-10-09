@@ -1,0 +1,26 @@
+# Local ScriptHookRDR2 SDK (redistribution prohibited by its readme)
+/sdk/
+
+# CMake / Visual Studio output
+/build/
+/out/
+/.vs/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.vcxproj
+*.vcxproj.filters
+*.sln
+*.pdb
+*.ilk
+*.obj
+*.exp
+*.lib
+*.dll
+*.asi
+
+# Runtime logs and local release packages
+StabledDonkey.log
+*.log
+/dist/
