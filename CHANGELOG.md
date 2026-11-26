@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.4.0 — 2026-11-26
+
+The regular mule can now be stabled, set as the main horse and kept across save loads.
+
+### Added
+
+- Mule stable support (`StableMules=1`). The game has no catalog item for mules, so a stabled mule was saved without a menu row (a vanilla bug). The model -> item functions (`player_horse`, `shop_horse_shop_sp` and other scripts with the same code) start with a case for a multiplayer-only horse; that case is rewritten in memory to map the mule to the `HORSE_DONKEY` item. The mule then gets its stable row, can be set as the main horse, answers the whistle, shows on the map and is restored on load. Its breed still reads "Mula".
+- `StableMuleModel` chooses which mule gets that single slot: `mule` (default) or `painted`.
+- The mod's own on-foot care prompts (G pat, B brush, R feed) for mules (`CareMuleOnFoot=1`), because their vanilla prompts grey out unpredictably. On mules only the vanilla brush and feed are hidden (`HideVanillaPromptTypesMule=49,50`): hiding all of them made the engine drop the lock-on.
+- `CarePromptPriority` (default 2, high) so the mod's prompts are not covered by the active vanilla ones.
+
+### Changed
+
+- Like vanilla horses, on-foot Pat is offered before the bond (it starts the bond), while Brush and Feed need bond level 1.
+
+### Known limitations
+
+- Only one mule model fits the stable mapping. The painted mule (one mission only) keeps the vanilla stable bug.
+- In the stable the mule's title reads "Burro" (it uses the donkey item).
+- After an on-foot action the animal must be locked on again (right click) to repeat; this now applies to mules too.
+- "Remove saddle" still does not appear, even with the mule as the main horse. The TAB-wheel brush stays greyed out.
+
 ## v0.3.0 — 2026-11-25
 
 Mules join the donkey: natural bonding and care for the mule and the painted mule.

@@ -12,7 +12,7 @@ namespace StabledDonkey
 {
     namespace
     {
-        constexpr const char *VERSION = "0.3.0";
+        constexpr const char *VERSION = "0.4.0";
         constexpr DWORD TICK_MS = 100;
 
         HMODULE g_module = nullptr;
