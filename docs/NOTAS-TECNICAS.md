@@ -40,7 +40,7 @@ Detalles prácticos:
 - El escaneo solo recorre memoria privada. La memoria mapeada o write-combined (GPU) es lentísima de leer y colgaba el escaneo. La pasada rápida tarda unos 20 s tras cargar.
 - ScriptHook reinicia el `ScriptMain` del mod al cargar una partida, y el juego recarga sus scripts con los chequeos originales. Por eso `ScriptPatch::Reset()` vuelve a escanear en cada carga, y además se reescanea si un sitio parcheado cambia.
 
-## 3. Botones de cuidado (`src/native/DonkeyCare.cpp`)
+## 3. Botones de cuidado (`src/native/CarePrompts.cpp`)
 
 A pie, el motor muestra **en gris** acariciar, cepillar y alimentar en el burro, y el cepillo del menú TAB también sale gris. Las interacciones en sí funcionan: `IS_ANIMAL_INTERACTION_POSSIBLE` = 1 y `TASK_ANIMAL_INTERACTION` se ejecuta.
 
@@ -67,12 +67,14 @@ Limitación: durante la animación el motor suelta el objetivo fijado y no lo re
 - A pie: acariciar, cepillar (limpia) y alimentar (gasta la comida); vínculo +1 cepillando o alimentando y +5 acariciando.
 - Un burro salvaje (Rampage) se puede montar, gana vínculo, aparece en el mapa y responde al silbido.
 
-## Mulas (pendiente)
+## Mulas (v0.3.0)
 
-- La mula es casi un caballo en `metapeds`. Solo cambian el tipo de animal (`AT_MULE`), `0x7BA672C7` (vacío), `0x3CF2AF47`, los floats, el flag y `0x2FC486F7`.
-- `func_393` bloquea su vínculo y cuidados en `player_horse`.
-- **No existe un item `HORSE_MULE`** en el catálogo, aunque `metapeds` lo referencia. Es el riesgo principal para el establo.
-- `PatchMules=1` ya aplica a las mulas la parte del modelo y de los scripts. Falta comprobar si sus botones vanilla funcionan una vez que tienen vínculo, antes de añadir botones propios.
+- La mula es casi un caballo en `metapeds`. Solo cambian el tipo de animal (`AT_MULE`), `0x7BA672C7` (vacío), `0x3CF2AF47`, los floats, el flag y `0x2FC486F7`. `ModelInfoPatch` les aplica los mismos campos base que al burro (no los exclusivos del burro).
+- `player_horse` `func_393` bloqueaba su vínculo y cuidados; `ScriptPatch` lo neutraliza igual que `func_392`.
+- Con vínculo, los botones originales a pie (acariciar, cepillar, alimentar) **funcionan en la mula**. Por eso el gris del burro es propio del burro (muy probablemente su esqueleto, `META_Base_Donkey_01`; la mula usa el de caballo) y no de los datos que compartimos.
+- A veces esos botones de la mula salen grises; ocurría también con el gancho de la v0.1. La causa no está identificada. En el diagnóstico, la mula aparece como caballo temporal sin dueño registrado (owner -1) y sin modos de prompt activos.
+- El cepillo del menú TAB sale gris en burro y mula y no en el caballo. Se probó darles la referencia de raza del caballo (`0xAAD9DD0F`, offset 0x370): no lo activa y hace que la ficha muestre las estadísticas del Tennessee Walker. Descartado; se usa "Cepillar mula" montado.
+- **Establo:** no existe un item `HORSE_MULE` en el catálogo (aunque `metapeds` lo referencia), y `shop_horse_shop_sp` `func_1318` (modelo → item) devuelve 0 para la mula. El juego original ya deja entrar a la mula y la guarda rota. El mod deja intacta la comprobación de mula del script del establo (`func_2186`): está en la misma región de memoria que el texto marcador del establo, a diferencia de las de `player_horse`. Guardar mulas de verdad exigiría crear un item de catálogo en memoria.
 
 ## Natives y globales usados
 
@@ -82,7 +84,7 @@ Limitación: durante la animación el motor suelta el objetivo fijado y no lo re
 | `_IS_ANIMAL_INTERACTION_RUNNING` | `0x7FC84E85D98F063D` |
 | `GET_PLAYER_INTERACTION_TARGET_ENTITY` | `0x3EE1F7A8C32F24E1` |
 | `_MODIFY_PLAYER_UI_PROMPT_FOR_PED` | `0xA3DB37EDF9A74635` |
-| `_UI_PROMPT_*` (register, text, hold, group, visible, enabled) | ver `DonkeyCare.cpp` |
+| `_UI_PROMPT_*` (register, text, hold, group, visible, enabled) | ver `CarePrompts.cpp` |
 | `_INVENTORY_GET_INVENTORY_ITEM_COUNT_WITH_ITEMID` | `0xE787F05DFC977BDE` |
 | `GET_ATTRIBUTE_BASE_RANK` (suciedad = 16) | `0x147149F2E909323C` |
 | `GET_MISSION_FLAG` | `0xB15CD1CF58771DE1` |

@@ -68,13 +68,7 @@ namespace StabledDonkey::NativeHorse
             size_t horseHashB = NOT_FOUND; // metapeds 0x3CF2AF47 (HORSE / default / default)
             size_t floats = NOT_FOUND;     // metapeds 0xB6F6DE8E (25/50/100 vs 0/0/0)
             size_t flagByte = NOT_FOUND;   // metapeds 0xF45D226F (1 vs 0)
-            size_t breedRef = NOT_FOUND;   // metapeds 0xAAD9DD0F (horse breed / HORSE_DONKEY / HORSE_MULE)
         };
-
-        constexpr uint32_t HORSE_DONKEY_ITEM = 0xEF006BE0; // joaat("HORSE_DONKEY")
-        constexpr uint32_t HORSE_MULE_ITEM = 0xE867190F;   // joaat("HORSE_MULE"), item missing from the catalog
-        uint32_t g_horseBreedRef = 0;
-        uint32_t g_paintedMuleBreedRef = 0;
 
         // Donkey-only fields set to the horse value (the mule already has it).
         // Tested together in game (2026-11-25): with them the donkey can be
@@ -232,12 +226,10 @@ namespace StabledDonkey::NativeHorse
             const std::vector<uint8_t> M = Snapshot(mule);
             const size_t size = std::min({W.size(), D.size(), M.size()});
 
-            std::vector<size_t> animal, hashA, hashB, floats, donkeyTasks, breedRef;
+            std::vector<size_t> animal, hashA, hashB, floats, donkeyTasks;
             for (size_t o = 0; o + 4 <= size; o += 4)
             {
                 const uint32_t d = U32(D, o), m = U32(M, o), w = U32(W, o);
-                if (d == HORSE_DONKEY_ITEM && m == HORSE_MULE_ITEM && w != d && w != m && w != 0)
-                    breedRef.push_back(o);
                 if (d == AT_DONKEY && m == AT_MULE && w == AT_HORSE)
                     animal.push_back(o);
                 if (d == HASH_DONKEY && w == HASH_HORSE && m != HASH_HORSE && m != HASH_DONKEY)
@@ -266,18 +258,6 @@ namespace StabledDonkey::NativeHorse
             g_offsets.floats = PickUnique(floats, "levels");
             if (g_offsets.horseHashA != NOT_FOUND)
                 g_muleHashA = U32(M, g_offsets.horseHashA);
-            if (g_config.experimentBreedRef)
-            {
-                g_offsets.breedRef = PickUnique(breedRef, "breed_ref");
-                if (g_offsets.breedRef != NOT_FOUND)
-                {
-                    g_horseBreedRef = U32(W, g_offsets.breedRef);
-                    if (g_targets[2].info && Memory::IsReadable(g_targets[2].info + g_offsets.breedRef, 4))
-                        g_paintedMuleBreedRef = LiveU32(g_targets[2].info, g_offsets.breedRef);
-                    Log("Model patch: experiment breed_ref off=0x%zX horse=0x%08X", g_offsets.breedRef,
-                        g_horseBreedRef);
-                }
-            }
 
             if (donkeyTasks.size() == 2)
             {
@@ -369,17 +349,6 @@ namespace StabledDonkey::NativeHorse
             {
                 for (const DonkeyField &field : g_donkeyFields)
                     WriteU32(target, field.offset, field.donkeyValue, field.horseValue, field.name);
-            }
-
-            // Experiment (ExperimentBreedRef): the TAB-wheel brush is greyed on
-            // donkey and mules but not on horses; this breed reference is one
-            // of the few model fields they share against the horse.
-            if (g_offsets.breedRef != NOT_FOUND && g_horseBreedRef != 0)
-            {
-                const uint32_t original = target.isDonkey                    ? HORSE_DONKEY_ITEM
-                                          : target.model == Models::MULE ? HORSE_MULE_ITEM
-                                                                         : g_paintedMuleBreedRef;
-                WriteU32(target, g_offsets.breedRef, original, g_horseBreedRef, "breed_ref");
             }
         }
     }

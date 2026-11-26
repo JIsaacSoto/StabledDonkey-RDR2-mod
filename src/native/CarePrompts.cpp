@@ -1,4 +1,4 @@
-#include "DonkeyCare.h"
+#include "CarePrompts.h"
 
 #include "Config.h"
 #include "Log.h"
@@ -14,7 +14,7 @@
 #include <cstdlib>
 #include <string>
 
-// Care prompts for the donkey.
+// Care prompts for the donkey and the mules.
 //
 // The engine shows the vanilla pat / brush / feed prompts greyed out for the
 // donkey (and the brush greyed in the TAB wheel) even though the interactions
@@ -23,11 +23,13 @@
 // the mod's own prompts instead:
 //   - on foot, inside the donkey's lock-on menu, with the vanilla keys
 //     (the greyed vanilla prompts are hidden on the donkey), and
-//   - "Cepillar burro" while riding it, when it is dirty and standing still.
+//   - "Cepillar burro" / "Cepillar mula" while riding, when the animal is
+//     dirty and standing still (the TAB-wheel brush is greyed on both; the
+//     mules keep their working vanilla on-foot prompts).
 // Brush and feed do not reimplement anything: they start the vanilla
 // player_horse item-use sequence, so cleaning, item use, cores and bonding
 // are the game's own.
-namespace StabledDonkey::DonkeyCare
+namespace StabledDonkey::CarePrompts
 {
     namespace
     {

@@ -378,19 +378,31 @@ namespace StabledDonkey::ScriptPatch
                 return before || after;
             };
 
-            unsigned patchedSwitch = 0, patchedCompare = 0, patchedMule = 0;
+            unsigned patchedSwitch = 0, patchedCompare = 0, patchedMule = 0, muleKeptInStable = 0;
             for (const Hit &hit : hits)
             {
-                const bool allowed = hit.value == DONKEY ? g_config.patchDonkey : g_config.patchMules;
+                const bool isDonkey = hit.value == DONKEY;
+                const bool allowed = isDonkey ? g_config.patchDonkey : g_config.patchMules;
                 bool shouldPatch = false;
                 if (hit.kind == SwitchCase)
                     shouldPatch = hit.opcode == OP_SWITCH && hit.next == OP_LOCAL_U8_LOAD;
                 else if (hit.kind == Compare)
                     shouldPatch = opcodesConfirmed && inCluster(hit.address) && inShopScript(hit.region);
+
+                // Mules have no catalog item (HORSE_MULE does not exist), so a
+                // stabled mule is saved broken. Keep the stable script's mule
+                // helper (shop_horse_shop_sp func_2186) intact: the stable then
+                // treats mules as vanilla does. Test 2026-11-25 showed that
+                // helper sits in the same region as the stable marker string.
+                if (allowed && shouldPatch && !isDonkey && inShopScript(hit.region))
+                {
+                    ++muleKeptInStable;
+                    continue;
+                }
                 if (allowed && shouldPatch && PatchHit(hit))
                 {
                     (hit.kind == SwitchCase ? patchedSwitch : patchedCompare)++;
-                    if (hit.value != DONKEY)
+                    if (!isDonkey)
                         ++patchedMule;
                     g_patched.push_back({hit.address, MarkerFor(hit.value)});
                 }
@@ -400,9 +412,10 @@ namespace StabledDonkey::ScriptPatch
             for (size_t i = 0; i < job.markerCount; ++i)
                 foundPlayerHorse = foundPlayerHorse || job.markers[i].marker == MARKER_PLAYER_HORSE;
 
-            Log("Script patch: scan (%s) %llu MB in %llu ms, scripts_found=%zu, patched switch=%u compare=%u (mule hashes=%u)%s%s",
+            Log("Script patch: scan (%s) %llu MB in %llu ms, scripts_found=%zu, patched switch=%u compare=%u (mule=%u, mule kept in stable=%u)%s%s",
                 job.reason, job.bytesScanned / (1024ull * 1024ull), static_cast<unsigned long long>(job.elapsedMs),
-                job.markerCount, patchedSwitch, patchedCompare, patchedMule, job.overflow ? " (hit overflow)" : "",
+                job.markerCount, patchedSwitch, patchedCompare, patchedMule, muleKeptInStable,
+                job.overflow ? " (hit overflow)" : "",
                 opcodesConfirmed ? "" : " (opcodes not confirmed: compares left intact)");
 
             // The fast pass skips large regions. If it did not even find

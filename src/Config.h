@@ -13,15 +13,14 @@ namespace StabledDonkey
         // Donkey treated as a horse: model data in memory + vanilla script
         // checks (bonding, care, stats, stable).
         bool patchDonkey = true;
-        // Same for the mule and the painted mule (not finished yet).
-        bool patchMules = false;
-        // Experiment: give the patched animals the horse breed reference
-        // (metapeds 0xAAD9DD0F) to see if the TAB-wheel brush unlocks.
-        bool experimentBreedRef = false;
+        // Same for the mule and the painted mule: bonding, care, stats. The
+        // stable cannot store mules (no catalog item; vanilla bug).
+        bool patchMules = true;
 
         // The engine greys out the vanilla pat / brush / feed prompts on the
-        // donkey, so the mod adds its own (lock-on menu on foot, brush while
-        // riding). Brush and feed run the vanilla player_horse item use.
+        // donkey, so the mod adds its own (lock-on menu on foot) and a brush
+        // prompt while riding a donkey or a mule. Brush and feed run the
+        // vanilla player_horse item use.
         bool carePrompts = true;
         // Control names (femga/rdr3_discoveries Controls). Defaults are the
         // vanilla horse keys: G pat, B brush, R feed.

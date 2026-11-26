@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.3.0 — 2026-11-25
+
+Mules join the donkey: natural bonding and care for the mule and the painted mule.
+
+### Added
+
+- Mule and painted mule support, now on by default (`PatchMules=1`). The same in-memory model data patch, plus the `player_horse` mule check removed, so mules gain bonding XP from riding, feeding, brushing and patting, level up, show their info card and stats, and appear as the temporary horse.
+- Once bonded, mules use the vanilla on-foot pat / brush / feed prompts.
+- "Cepillar mula" (R) while riding a dirty mule, like "Cepillar burro".
+
+### Changed
+
+- The care prompts module is now `src/native/CarePrompts.cpp` (was `DonkeyCare.cpp`).
+- The stable script's own mule check is left intact, so the stable treats mules exactly as vanilla does.
+
+### Known limitations
+
+- Do not store mules in the stable. Vanilla already lets a mule in, but there is no catalog item for it and the game saves it broken (no breed, blank menu, unselectable slot). This is a vanilla bug.
+- The vanilla on-foot mule prompts are sometimes greyed out; the cause is not known yet.
+- The TAB-wheel brush stays greyed out on donkey and mules (it works on horses).
+- The info card coat field shows `~lp~` for donkey and mules (cosmetic).
+
 ## v0.2.0 — 2026-11-25
 
 The donkey now works as a real horse breed, with every change applied in memory and no game files touched.
