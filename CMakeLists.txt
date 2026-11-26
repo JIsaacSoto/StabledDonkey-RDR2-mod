@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(StabledDonkey VERSION 0.2.0 LANGUAGES CXX)
+project(StabledDonkey VERSION 0.3.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -19,7 +19,7 @@ add_library(StabledDonkey SHARED
     src/Config.cpp
     src/Log.cpp
     src/mount/MountAdapter.cpp
-    src/native/DonkeyCare.cpp
+    src/native/CarePrompts.cpp
     src/native/Memory.cpp
     src/native/ModelInfoPatch.cpp
     src/native/ScriptPatch.cpp

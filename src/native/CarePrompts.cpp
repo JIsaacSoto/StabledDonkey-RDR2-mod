@@ -1,4 +1,4 @@
-#include "DonkeyCare.h"
+#include "CarePrompts.h"
 
 #include "Config.h"
 #include "Log.h"
@@ -14,7 +14,7 @@
 #include <cstdlib>
 #include <string>
 
-// Care prompts for the donkey.
+// Care prompts for the donkey and the mules.
 //
 // The engine shows the vanilla pat / brush / feed prompts greyed out for the
 // donkey (and the brush greyed in the TAB wheel) even though the interactions
@@ -23,11 +23,13 @@
 // the mod's own prompts instead:
 //   - on foot, inside the donkey's lock-on menu, with the vanilla keys
 //     (the greyed vanilla prompts are hidden on the donkey), and
-//   - "Cepillar burro" while riding it, when it is dirty and standing still.
+//   - "Cepillar burro" / "Cepillar mula" while riding, when the animal is
+//     dirty and standing still (the TAB-wheel brush is greyed on both; the
+//     mules keep their working vanilla on-foot prompts).
 // Brush and feed do not reimplement anything: they start the vanilla
 // player_horse item-use sequence, so cleaning, item use, cores and bonding
 // are the game's own.
-namespace StabledDonkey::DonkeyCare
+namespace StabledDonkey::CarePrompts
 {
     namespace
     {
@@ -96,6 +98,7 @@ namespace StabledDonkey::DonkeyCare
         ULONGLONG g_nextHide = 0;
         ULONGLONG g_cooldownUntil = 0;
         bool g_refreshAfterAction = false;
+        bool g_mountedBrushForMule = false;
         Hash g_brushItem = 0;
         int g_brushCount = 0;
         Hash g_food = 0;
@@ -325,26 +328,45 @@ namespace StabledDonkey::DonkeyCare
             }
         }
 
-        void UpdateMounted(Ped player, Ped donkey, bool idle, ULONGLONG now)
+        // Brush while riding. The TAB-wheel brush stays greyed on the donkey
+        // and on the mules (it works on horses), so both get this prompt.
+        void UpdateMounted(Ped mount, bool idle, ULONGLONG now)
         {
-            if (!IsValid(g_mountedBrush))
-                Create(g_mountedBrush, "Cepillar burro", g_config.careInputMountedBrush, 0);
+            const bool isMule = mount && MountAdapter(mount).IsMule();
+            if (!IsValid(g_mountedBrush) || isMule != g_mountedBrushForMule)
+            {
+                g_mountedBrushForMule = isMule;
+                Create(g_mountedBrush, isMule ? "Cepillar mula" : "Cepillar burro", g_config.careInputMountedBrush, 0);
+            }
 
-            const bool riding = PED::IS_PED_ON_MOUNT(player) && PED::GET_MOUNT(player) == donkey;
-            const int dirt = riding ? invoke<int>(NATIVE_GET_ATTRIBUTE_BASE_RANK, donkey, ATTRIBUTE_DIRT) : 0;
+            const int dirt = mount ? invoke<int>(NATIVE_GET_ATTRIBUTE_BASE_RANK, mount, ATTRIBUTE_DIRT) : 0;
             // Only when it matters, so the key does not get in the way.
-            const bool show = riding && g_brushCount > 0 && dirt >= g_config.careMountedBrushMinDirt &&
-                              !invoke<BOOL>(NATIVE_GET_MISSION_FLAG) && ENTITY::GET_ENTITY_SPEED(donkey) < 0.5f;
+            const bool show = mount && g_brushCount > 0 && dirt >= g_config.careMountedBrushMinDirt &&
+                              !invoke<BOOL>(NATIVE_GET_MISSION_FLAG) && ENTITY::GET_ENTITY_SPEED(mount) < 0.5f;
             SetVisible(g_mountedBrush, show);
             SetEnabled(g_mountedBrush, show && idle);
-            if (show && idle && Completed(g_mountedBrush) && RequestItemUse(donkey, g_brushItem, "mounted brush"))
+            if (show && idle && Completed(g_mountedBrush) && RequestItemUse(mount, g_brushItem, "mounted brush"))
                 ActionStarted(now);
+        }
+
+        // Current mount if it is a supported animal patched by the config.
+        Ped CareMount(Ped player)
+        {
+            if (!PED::IS_PED_ON_MOUNT(player))
+                return 0;
+            const Ped mount = PED::GET_MOUNT(player);
+            const MountAdapter adapter(mount);
+            if (adapter.IsDonkey() && g_config.patchDonkey)
+                return mount;
+            if (adapter.IsMule() && g_config.patchMules)
+                return mount;
+            return 0;
         }
     }
 
     void Update(Ped trackedDonkey)
     {
-        if (!g_config.carePrompts || !g_config.patchDonkey)
+        if (!g_config.carePrompts)
             return;
         const Ped player = PLAYER::PLAYER_PED_ID();
         if (!player || !ENTITY::DOES_ENTITY_EXIST(player))
@@ -356,12 +378,21 @@ namespace StabledDonkey::DonkeyCare
         if (g_mountedBrush.handle && !IsValid(g_mountedBrush))
             g_mountedBrush.handle = 0;
 
-        const Entity lockOn = LockOnTarget();
-        const Ped donkey = IsDonkey(lockOn) ? lockOn : (IsDonkey(trackedDonkey) ? trackedDonkey : 0);
-        if (!donkey || ENTITY::IS_ENTITY_DEAD(donkey))
+        // On-foot prompts only for the donkey: the mules keep working
+        // vanilla pat / brush / feed once they have a bond.
+        Ped donkey = 0;
+        if (g_config.patchDonkey)
         {
-            if (g_groupPed)
-                DeleteGroupPrompts();
+            const Entity lockOn = LockOnTarget();
+            donkey = IsDonkey(lockOn) ? lockOn : (IsDonkey(trackedDonkey) ? trackedDonkey : 0);
+            if (donkey && ENTITY::IS_ENTITY_DEAD(donkey))
+                donkey = 0;
+        }
+        const Ped mount = CareMount(player);
+        if (!donkey && g_groupPed)
+            DeleteGroupPrompts();
+        if (!donkey && !mount)
+        {
             SetVisible(g_mountedBrush, false);
             return;
         }
@@ -381,8 +412,8 @@ namespace StabledDonkey::DonkeyCare
         }
 
         PollInventory(now);
-        if (!PED::IS_PED_ON_MOUNT(player))
+        if (donkey && !PED::IS_PED_ON_MOUNT(player))
             UpdateOnFoot(player, donkey, idle, now);
-        UpdateMounted(player, donkey, idle, now);
+        UpdateMounted(mount, idle, now);
     }
 }
