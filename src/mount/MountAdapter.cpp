@@ -2,26 +2,11 @@
 
 #include "natives.h"
 
-#include <atomic>
-
 namespace StabledDonkey
 {
     namespace
     {
-        thread_local bool g_mountAdapterModelQuery = false;
-    }
-
-    bool IsMountAdapterModelQueryActive()
-    {
-        return g_mountAdapterModelQuery;
-    }
-
-    namespace
-    {
-        constexpr Hash DONKEY_MODEL = 0x69A37A7B;
-        constexpr Hash MULE_MODEL = 0xB6A7CE35;
-        constexpr Hash PAINTED_MULE_MODEL = 0x23685521;
-        constexpr int BONDING_ATTRIBUTE = 7;
+        constexpr int BONDING_ATTRIBUTE = 7; // PA_BONDING
     }
 
     MountAdapter::MountAdapter(Ped ped)
@@ -31,7 +16,7 @@ namespace StabledDonkey
 
     bool MountAdapter::IsValid() const
     {
-        return m_ped != 0;
+        return m_ped != 0 && ENTITY::DOES_ENTITY_EXIST(m_ped);
     }
 
     bool MountAdapter::IsSupported() const
@@ -46,25 +31,18 @@ namespace StabledDonkey
 
     Hash MountAdapter::GetModel() const
     {
-        if (!IsValid())
-            return 0;
-
-        const bool previous = g_mountAdapterModelQuery;
-        g_mountAdapterModelQuery = true;
-        const Hash model = ENTITY::GET_ENTITY_MODEL(m_ped);
-        g_mountAdapterModelQuery = previous;
-        return model;
+        return IsValid() ? ENTITY::GET_ENTITY_MODEL(m_ped) : 0;
     }
 
     MountType MountAdapter::GetType() const
     {
         switch (GetModel())
         {
-        case DONKEY_MODEL:
+        case Models::DONKEY:
             return MountType::Donkey;
-        case MULE_MODEL:
+        case Models::MULE:
             return MountType::Mule;
-        case PAINTED_MULE_MODEL:
+        case Models::PAINTED_MULE:
             return MountType::PaintedMule;
         default:
             return MountType::None;
@@ -78,28 +56,19 @@ namespace StabledDonkey
 
     bool MountAdapter::IsMule() const
     {
-        return GetType() == MountType::Mule;
-    }
-
-    bool MountAdapter::IsPaintedMule() const
-    {
-        return GetType() == MountType::PaintedMule;
+        const MountType type = GetType();
+        return type == MountType::Mule || type == MountType::PaintedMule;
     }
 
     int MountAdapter::GetBondingPoints() const
     {
-        if (!IsValid())
-            return 0;
-
-        return static_cast<int>(ATTRIBUTE::_0x219DA04BAA9CB065(m_ped, BONDING_ATTRIBUTE));
+        // ATTRIBUTE::GET_ATTRIBUTE_POINTS
+        return IsValid() ? static_cast<int>(ATTRIBUTE::_0x219DA04BAA9CB065(m_ped, BONDING_ATTRIBUTE)) : 0;
     }
 
     int MountAdapter::GetBondingLevel() const
     {
-        if (!IsValid())
-            return 0;
-
-        return static_cast<int>(ATTRIBUTE::_0xA4C8E23E29040DE0(m_ped, BONDING_ATTRIBUTE));
+        // ATTRIBUTE::GET_ATTRIBUTE_RANK
+        return IsValid() ? static_cast<int>(ATTRIBUTE::_0xA4C8E23E29040DE0(m_ped, BONDING_ATTRIBUTE)) : 0;
     }
-
 }
