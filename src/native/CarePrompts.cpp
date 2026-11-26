@@ -40,6 +40,7 @@ namespace StabledDonkey::CarePrompts
         constexpr uint64_t NATIVE_PROMPT_SET_CONTROL_ACTION = 0xB5352B7494A08258;
         constexpr uint64_t NATIVE_PROMPT_SET_TEXT = 0x5DD02A8318420DD7;
         constexpr uint64_t NATIVE_PROMPT_SET_HOLD_MODE = 0x94073D5CA3F16B7B;
+        constexpr uint64_t NATIVE_PROMPT_SET_PRIORITY = 0xCA24F528D0D16289; // ePromptPriority: Low 0 .. MissionCritical 3
         constexpr uint64_t NATIVE_PROMPT_HAS_HOLD_MODE_COMPLETED = 0xE0F65F0640EF0617;
         constexpr uint64_t NATIVE_PROMPT_SET_GROUP = 0x2F11D3A254169EA4;
         constexpr uint64_t NATIVE_PROMPT_GET_GROUP_ID_FOR_TARGET_ENTITY = 0xB796970BD125FCE8;
@@ -133,6 +134,9 @@ namespace StabledDonkey::CarePrompts
             invoke<Void>(NATIVE_PROMPT_SET_ENABLED, handle, TRUE);
             invoke<Void>(NATIVE_PROMPT_SET_VISIBLE, handle, groupId != 0 ? TRUE : FALSE);
             invoke<Void>(NATIVE_PROMPT_SET_HOLD_MODE, handle, HOLD_MS);
+            // On a mule the active vanilla pat covered our prompts; a higher
+            // priority keeps them in the lock-on menu.
+            invoke<Void>(NATIVE_PROMPT_SET_PRIORITY, handle, g_config.carePromptPriority);
             if (groupId != 0)
                 invoke<Void>(NATIVE_PROMPT_SET_GROUP, handle, groupId, 0);
             invoke<Void>(NATIVE_PROMPT_REGISTER_END, handle);
@@ -187,7 +191,11 @@ namespace StabledDonkey::CarePrompts
             g_hiddenPed = donkey;
             g_nextHide = now + HIDE_REFRESH_MS;
             const Player player = PLAYER::PLAYER_ID();
-            const std::string &list = g_config.hideVanillaPromptTypes;
+            // Mules keep working vanilla prompts; hiding all of them (as on the
+            // donkey) made the engine drop the lock-on a second later (test
+            // 2026-11-26), so they have their own, shorter list.
+            const std::string &list = MountAdapter(donkey).IsMule() ? g_config.hideVanillaPromptTypesMule
+                                                                    : g_config.hideVanillaPromptTypes;
             size_t start = 0;
             while (start < list.size())
             {
@@ -273,10 +281,36 @@ namespace StabledDonkey::CarePrompts
             return sqrtf(dx * dx + dy * dy + dz * dz);
         }
 
-        bool IsDonkey(Entity entity)
+        bool IsOnFootCareTarget(Entity entity)
         {
-            return entity && ENTITY::DOES_ENTITY_EXIST(entity) && ENTITY::IS_ENTITY_A_PED(entity) &&
-                   ENTITY::GET_ENTITY_MODEL(entity) == Models::DONKEY;
+            if (!entity || !ENTITY::DOES_ENTITY_EXIST(entity) || !ENTITY::IS_ENTITY_A_PED(entity))
+                return false;
+            const MountAdapter adapter(entity);
+            // Any bond level: pat is offered before the bond, like vanilla
+            // (it is how the bond starts); brush / feed need level 1.
+            return (adapter.IsDonkey() && g_config.patchDonkey) ||
+                   (adapter.IsMule() && g_config.patchMules && g_config.careMuleOnFoot);
+        }
+
+        // Short state-change log for the on-foot prompts (to find out why
+        // they sometimes do not show on a mule).
+        Ped g_loggedTarget = 0;
+        int g_loggedState = -1;
+
+        void LogOnFootState(Ped target, float distance, bool isNear, bool bonded, int groupId)
+        {
+            Entity lockOn = 0;
+            if (!invoke<BOOL>(NATIVE_GET_PLAYER_INTERACTION_TARGET_ENTITY, PLAYER::PLAYER_ID(), &lockOn, FALSE, FALSE))
+                lockOn = 0;
+            const bool locked = lockOn == target;
+            const int state = (isNear ? 1 : 0) | (bonded ? 2 : 0) | (IsValid(g_pat) ? 4 : 0) | (locked ? 8 : 0);
+            if (target == g_loggedTarget && state == g_loggedState)
+                return;
+            g_loggedTarget = target;
+            g_loggedState = state;
+            Log("Care: on foot model=0x%08X locked=%d bond_level=%d dist=%.2f near=%d group=%d prompts=%d",
+                ENTITY::GET_ENTITY_MODEL(target), locked ? 1 : 0, MountAdapter(target).GetBondingLevel(), distance,
+                isNear ? 1 : 0, groupId, IsValid(g_pat) ? 1 : 0);
         }
 
         Entity LockOnTarget()
@@ -296,13 +330,16 @@ namespace StabledDonkey::CarePrompts
         void UpdateOnFoot(Ped player, Ped donkey, bool idle, ULONGLONG now)
         {
             SetupGroupPrompts(donkey);
-            const bool isNear = Distance(player, donkey) <= g_config.careMaxDistance;
+            const float distance = Distance(player, donkey);
+            const bool isNear = distance <= g_config.careMaxDistance;
+            const bool bonded = MountAdapter(donkey).GetBondingLevel() >= 1;
+            LogOnFootState(donkey, distance, isNear, bonded, g_groupId);
             SetVisible(g_pat, isNear);
-            SetVisible(g_brush, isNear && g_brushCount > 0);
-            SetVisible(g_feed, isNear && g_food != 0);
+            SetVisible(g_brush, isNear && bonded && g_brushCount > 0);
+            SetVisible(g_feed, isNear && bonded && g_food != 0);
             SetEnabled(g_pat, isNear && idle);
-            SetEnabled(g_brush, isNear && idle && g_brushCount > 0);
-            SetEnabled(g_feed, isNear && idle && g_food != 0);
+            SetEnabled(g_brush, isNear && idle && bonded && g_brushCount > 0);
+            SetEnabled(g_feed, isNear && idle && bonded && g_food != 0);
             if (!isNear)
                 return;
             HideVanillaPrompts(donkey, now);
@@ -316,12 +353,12 @@ namespace StabledDonkey::CarePrompts
                 Log("Care: pat");
                 ActionStarted(now);
             }
-            else if (g_brushCount > 0 && Completed(g_brush))
+            else if (bonded && g_brushCount > 0 && Completed(g_brush))
             {
                 if (RequestItemUse(donkey, g_brushItem, "brush"))
                     ActionStarted(now);
             }
-            else if (g_food != 0 && Completed(g_feed))
+            else if (bonded && g_food != 0 && Completed(g_feed))
             {
                 if (RequestItemUse(donkey, g_food, "feed"))
                     ActionStarted(now);
@@ -378,16 +415,13 @@ namespace StabledDonkey::CarePrompts
         if (g_mountedBrush.handle && !IsValid(g_mountedBrush))
             g_mountedBrush.handle = 0;
 
-        // On-foot prompts only for the donkey: the mules keep working
-        // vanilla pat / brush / feed once they have a bond.
-        Ped donkey = 0;
-        if (g_config.patchDonkey)
-        {
-            const Entity lockOn = LockOnTarget();
-            donkey = IsDonkey(lockOn) ? lockOn : (IsDonkey(trackedDonkey) ? trackedDonkey : 0);
-            if (donkey && ENTITY::IS_ENTITY_DEAD(donkey))
-                donkey = 0;
-        }
+        // On-foot prompts for the donkey and (CareMuleOnFoot) the mules, whose
+        // vanilla prompts grey out unpredictably. Like vanilla horses, only
+        // once the animal has a bond.
+        const Entity lockOn = LockOnTarget();
+        Ped donkey = IsOnFootCareTarget(lockOn) ? lockOn : (IsOnFootCareTarget(trackedDonkey) ? trackedDonkey : 0);
+        if (donkey && ENTITY::IS_ENTITY_DEAD(donkey))
+            donkey = 0;
         const Ped mount = CareMount(player);
         if (!donkey && g_groupPed)
             DeleteGroupPrompts();

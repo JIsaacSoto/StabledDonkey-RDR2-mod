@@ -67,14 +67,22 @@ Limitación: durante la animación el motor suelta el objetivo fijado y no lo re
 - A pie: acariciar, cepillar (limpia) y alimentar (gasta la comida); vínculo +1 cepillando o alimentando y +5 acariciando.
 - Un burro salvaje (Rampage) se puede montar, gana vínculo, aparece en el mapa y responde al silbido.
 
-## Mulas (v0.3.0)
+## Mulas (v0.3.0 y v0.4.0)
 
 - La mula es casi un caballo en `metapeds`. Solo cambian el tipo de animal (`AT_MULE`), `0x7BA672C7` (vacío), `0x3CF2AF47`, los floats, el flag y `0x2FC486F7`. `ModelInfoPatch` les aplica los mismos campos base que al burro (no los exclusivos del burro).
 - `player_horse` `func_393` bloqueaba su vínculo y cuidados; `ScriptPatch` lo neutraliza igual que `func_392`.
 - Con vínculo, los botones originales a pie (acariciar, cepillar, alimentar) **funcionan en la mula**. Por eso el gris del burro es propio del burro (muy probablemente su esqueleto, `META_Base_Donkey_01`; la mula usa el de caballo) y no de los datos que compartimos.
-- A veces esos botones de la mula salen grises; ocurría también con el gancho de la v0.1. La causa no está identificada. En el diagnóstico, la mula aparece como caballo temporal sin dueño registrado (owner -1) y sin modos de prompt activos.
+- A veces esos botones de la mula salen grises (también con el gancho de la v0.1, y varía entre cargas). La causa no está identificada; en el diagnóstico, la mula aparecía como caballo temporal sin dueño registrado y sin modos de prompt activos. Desde la v0.4.0 la mula usa los botones del mod (`CareMuleOnFoot`).
 - El cepillo del menú TAB sale gris en burro y mula y no en el caballo. Se probó darles la referencia de raza del caballo (`0xAAD9DD0F`, offset 0x370): no lo activa y hace que la ficha muestre las estadísticas del Tennessee Walker. Descartado; se usa "Cepillar mula" montado.
-- **Establo:** no existe un item `HORSE_MULE` en el catálogo (aunque `metapeds` lo referencia), y `shop_horse_shop_sp` `func_1318` (modelo → item) devuelve 0 para la mula. El juego original ya deja entrar a la mula y la guarda rota. El mod deja intacta la comprobación de mula del script del establo (`func_2186`): está en la misma región de memoria que el texto marcador del establo, a diferencia de las de `player_horse`. Guardar mulas de verdad exigiría crear un item de catálogo en memoria.
+- **Establo (v0.4.0):**
+  - Cada hueco del establo guarda el **modelo**. El item se calcula al vuelo con las funciones modelo → item (`shop_horse_shop_sp` `func_1318`, `player_horse` `func_542` y otras copias), y el menú oculta las filas cuyo item no es válido. No existe un item `HORSE_MULE`, así que en el juego original la mula se guarda sin fila ni título.
+  - Esas funciones empiezan con `if (modelo == A_C_HORSE_MP_MANGY_BACKUP) return HORSE_BREED_MANGY_BACKUP;`, un caballo exclusivo del multijugador. En bytecode: `37 <0x30331B80> 15 08 00 37 <0x215F7CAE> 50 01 01` (el `if` usa el código combinado comparar-y-saltar `0x15`, no `IEQ`). El mod reescribe las dos constantes: mula → `HORSE_DONKEY`. Se aplicó en 6 sitios.
+  - Resultado probado (mula pintada, 2026-11-26): fila y precio en el establo (título "Burro", raza "Mula"), montura principal, silbido, mapa y persistencia al cargar, fuera y dentro del establo.
+  - Solo cabe un modelo. La v0.4.0 usa la mula normal; la pintada solo aparece en una misión.
+  - El `switch` que sigue a esa comprobación está **ordenado por valor** (con signo), así que no se puede renombrar un caso sin romper el orden. Se probó reconstruir la tabla sacrificando un caballo real, y se descartó por su coste. La idea pendiente es redirigir el salto del caso por defecto (`return 0`) a `return HORSE_DONKEY`, solo en el establo.
+  - La comprobación de mula del propio script del establo (`func_2186`) se deja intacta. Está en la misma región de memoria que el texto marcador del establo, a diferencia de las de `player_horse`.
+- Cuando el jugador se queda sin montura principal, `player_horse` usa un caballo por defecto (`func_970`: Tennessee Walker castaño). No es cosa del mod.
+- "Quitar silla" (H, `INPUT_SADDLE_TRANSFER`) es un botón del motor sin native ni tarea equivalente. `player_horse` solo recibe `EVENT_SADDLE_TRANSFER` cuando ya ocurrió. No aparece ni con la mula como montura principal, así que no depende del esqueleto.
 
 ## Natives y globales usados
 

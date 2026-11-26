@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <functional>
 #include <vector>
@@ -54,6 +55,19 @@ namespace StabledDonkey::ScriptPatch
         constexpr uint32_t MARKER_DONKEY = 0x5D0D0001;
         constexpr uint32_t MARKER_MULE = 0x5D0D0002;
         constexpr uint32_t MARKER_PAINTED_MULE = 0x5D0D0003;
+
+        // Stable mule mapping (StableMules=1). The model -> item
+        // functions (player_horse func_542, shop_horse_shop_sp func_1318) start
+        // with "if (model == A_C_HORSE_MP_MANGY_BACKUP) return
+        // HORSE_BREED_MANGY_BACKUP;", a multiplayer-only horse. That prefix is
+        // rewritten to "if (model == <mule>) return HORSE_DONKEY;" so a stabled
+        // mule gets a valid catalog item (no HORSE_MULE item exists). Only one
+        // model fits: the regular mule by default; the painted mule only shows
+        // up in one mission, where it has to be handed over.
+        constexpr uint32_t MANGY_MODEL = 0x30331B80; // joaat("A_C_HORSE_MP_MANGY_BACKUP")
+        constexpr uint32_t MANGY_ITEM = 0x215F7CAE;  // joaat("HORSE_BREED_MANGY_BACKUP")
+        constexpr uint32_t DONKEY_ITEM = 0xEF006BE0; // joaat("HORSE_DONKEY")
+        constexpr size_t MANGY_RESULT_WINDOW = 16;
 
         constexpr uint8_t OP_IEQ = 0x0B;
         constexpr uint8_t OP_PUSH_CONST_U32 = 0x37;
@@ -108,6 +122,7 @@ namespace StabledDonkey::ScriptPatch
         {
             std::atomic<int> state{0}; // 0 idle, 1 running, 2 done
             bool includeMules = false;
+            bool includeStableMule = false;
             size_t maxRegionBytes = 0; // 0 = scan every region
             bool discard = false;      // set when the mod restarted mid-scan
             const char *reason = "";
@@ -243,6 +258,8 @@ namespace StabledDonkey::ScriptPatch
                     ScanHashes(job, base, end, MULE);
                     ScanHashes(job, base, end, PAINTED_MULE);
                 }
+                if (job.includeStableMule)
+                    ScanHashes(job, base, end, MANGY_MODEL);
                 ScanMarkers(job, base, end);
                 return true;
             }
@@ -303,6 +320,7 @@ namespace StabledDonkey::ScriptPatch
             job.maxRegionBytes = fullScan ? 0 : FAST_SCAN_MAX_REGION_BYTES;
             job.discard = false;
             job.includeMules = g_config.patchMules;
+            job.includeStableMule = g_config.patchMules && g_config.stableMules;
             job.reason = reason;
             job.hitCount = 0;
             job.markerCount = 0;
@@ -347,6 +365,80 @@ namespace StabledDonkey::ScriptPatch
             return Memory::WriteBytes(hit.address, &marker, sizeof(marker));
         }
 
+        bool IsPatchedSite(uintptr_t address)
+        {
+            for (const PatchedSite &site : g_patched)
+                if (site.address == address)
+                    return true;
+            return false;
+        }
+
+        // Exact shape of the model -> item prefix, read from live bytecode
+        // (2026-11-26):
+        //   37 <MANGY_MODEL> 15 xx xx 37 <MANGY_ITEM> 50 01 01
+        //   PUSH_CONST_U32 model | fused compare-and-jump | PUSH_CONST_U32 item | LEAVE 1 1
+        // A looser match (item anywhere within 16 bytes) also hit a 7th, unknown
+        // site, and the 0.4.0 test then crashed when feeding a wild mule from
+        // the TAB menu; anything that does not fit exactly is now left intact.
+        constexpr uint8_t OP_FUSED_EQ_JUMP = 0x15;
+        constexpr uint8_t OP_LEAVE = 0x50;
+
+        void LogBytes(const char *what, uintptr_t at)
+        {
+            if (!Memory::IsReadable(at - 8, 32))
+                return;
+            char bytes[3 * 32 + 1]{};
+            size_t used = 0;
+            for (uintptr_t a = at - 8; a < at + 24; ++a)
+                used += std::snprintf(bytes + used, sizeof(bytes) - used, "%02X ", *reinterpret_cast<const uint8_t *>(a));
+            Log("Script patch: %s at %p: %s", what, reinterpret_cast<void *>(at), bytes);
+        }
+
+        // "PUSH_CONST_U32 MANGY_MODEL; ==; PUSH_CONST_U32 MANGY_ITEM; LEAVE" ->
+        // "PUSH_CONST_U32 <mule>; ==; PUSH_CONST_U32 HORSE_DONKEY; LEAVE". The
+        // other functions with the same mangy prefix (breed name, class)
+        // return something else and are left alone.
+        unsigned PatchStableMuleMapping(const std::vector<Hit> &hits)
+        {
+            const uint32_t mule = g_config.stableMuleModel == "mule" ? MULE : PAINTED_MULE;
+            unsigned sites = 0;
+            for (const Hit &hit : hits)
+            {
+                if (hit.value != MANGY_MODEL || !Memory::IsReadable(hit.address - 1, 1 + 4 + 3 + 5 + 3))
+                    continue;
+                const auto *p = reinterpret_cast<const uint8_t *>(hit.address);
+                const bool exact = p[-1] == OP_PUSH_CONST_U32 && p[4] == OP_FUSED_EQ_JUMP &&
+                                   p[7] == OP_PUSH_CONST_U32 && p[12] == OP_LEAVE;
+                if (!exact)
+                {
+                    // Log what the old, looser match would also have patched.
+                    if (p[-1] == OP_PUSH_CONST_U32 && Memory::IsReadable(hit.address + 4, MANGY_RESULT_WINDOW + 5))
+                        for (uintptr_t a = hit.address + 4; a < hit.address + 4 + MANGY_RESULT_WINDOW; ++a)
+                            if (reinterpret_cast<const uint8_t *>(a)[0] == OP_PUSH_CONST_U32 &&
+                                LoadU32(reinterpret_cast<const uint8_t *>(a) + 1) == MANGY_ITEM)
+                            {
+                                LogBytes("mangy site left intact (unexpected shape)", hit.address);
+                                break;
+                            }
+                    continue;
+                }
+                if (LoadU32(p + 8) != MANGY_ITEM)
+                {
+                    // Same prefix returning something else (breed name, class).
+                    continue;
+                }
+                const uintptr_t result = hit.address + 8;
+                if (!Memory::WriteBytes(result, &DONKEY_ITEM, sizeof(DONKEY_ITEM)))
+                    continue;
+                if (!Memory::WriteBytes(hit.address, &mule, sizeof(mule)))
+                    continue;
+                g_patched.push_back({hit.address, mule});
+                g_patched.push_back({result, DONKEY_ITEM});
+                ++sites;
+            }
+            return sites;
+        }
+
         void ApplyResults()
         {
             ScanJob &job = g_job;
@@ -381,6 +473,8 @@ namespace StabledDonkey::ScriptPatch
             unsigned patchedSwitch = 0, patchedCompare = 0, patchedMule = 0, muleKeptInStable = 0;
             for (const Hit &hit : hits)
             {
+                if (hit.value == MANGY_MODEL || IsPatchedSite(hit.address))
+                    continue; // mangy prefix: PatchStableMuleMapping; or ours already
                 const bool isDonkey = hit.value == DONKEY;
                 const bool allowed = isDonkey ? g_config.patchDonkey : g_config.patchMules;
                 bool shouldPatch = false;
@@ -408,9 +502,13 @@ namespace StabledDonkey::ScriptPatch
                 }
             }
 
+            const unsigned stableMuleSites = job.includeStableMule ? PatchStableMuleMapping(hits) : 0;
+
             bool foundPlayerHorse = false;
             for (size_t i = 0; i < job.markerCount; ++i)
                 foundPlayerHorse = foundPlayerHorse || job.markers[i].marker == MARKER_PLAYER_HORSE;
+            if (job.includeStableMule)
+                Log("Script patch: stable mule mapping sites=%u", stableMuleSites);
 
             Log("Script patch: scan (%s) %llu MB in %llu ms, scripts_found=%zu, patched switch=%u compare=%u (mule=%u, mule kept in stable=%u)%s%s",
                 job.reason, job.bytesScanned / (1024ull * 1024ull), static_cast<unsigned long long>(job.elapsedMs),
