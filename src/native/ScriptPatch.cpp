@@ -378,7 +378,7 @@ namespace StabledDonkey::ScriptPatch
                 return before || after;
             };
 
-            unsigned patchedSwitch = 0, patchedCompare = 0;
+            unsigned patchedSwitch = 0, patchedCompare = 0, patchedMule = 0;
             for (const Hit &hit : hits)
             {
                 const bool allowed = hit.value == DONKEY ? g_config.patchDonkey : g_config.patchMules;
@@ -390,6 +390,8 @@ namespace StabledDonkey::ScriptPatch
                 if (allowed && shouldPatch && PatchHit(hit))
                 {
                     (hit.kind == SwitchCase ? patchedSwitch : patchedCompare)++;
+                    if (hit.value != DONKEY)
+                        ++patchedMule;
                     g_patched.push_back({hit.address, MarkerFor(hit.value)});
                 }
             }
@@ -398,9 +400,9 @@ namespace StabledDonkey::ScriptPatch
             for (size_t i = 0; i < job.markerCount; ++i)
                 foundPlayerHorse = foundPlayerHorse || job.markers[i].marker == MARKER_PLAYER_HORSE;
 
-            Log("Script patch: scan (%s) %llu MB in %llu ms, scripts_found=%zu, patched switch=%u compare=%u%s%s",
+            Log("Script patch: scan (%s) %llu MB in %llu ms, scripts_found=%zu, patched switch=%u compare=%u (mule hashes=%u)%s%s",
                 job.reason, job.bytesScanned / (1024ull * 1024ull), static_cast<unsigned long long>(job.elapsedMs),
-                job.markerCount, patchedSwitch, patchedCompare, job.overflow ? " (hit overflow)" : "",
+                job.markerCount, patchedSwitch, patchedCompare, patchedMule, job.overflow ? " (hit overflow)" : "",
                 opcodesConfirmed ? "" : " (opcodes not confirmed: compares left intact)");
 
             // The fast pass skips large regions. If it did not even find

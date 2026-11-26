@@ -15,6 +15,9 @@ namespace StabledDonkey
         bool patchDonkey = true;
         // Same for the mule and the painted mule (not finished yet).
         bool patchMules = false;
+        // Experiment: give the patched animals the horse breed reference
+        // (metapeds 0xAAD9DD0F) to see if the TAB-wheel brush unlocks.
+        bool experimentBreedRef = false;
 
         // The engine greys out the vanilla pat / brush / feed prompts on the
         // donkey, so the mod adds its own (lock-on menu on foot, brush while
