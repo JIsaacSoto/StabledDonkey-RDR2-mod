@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.2.0 — 2026-11-25
+
+The donkey now works as a real horse breed, with every change applied in memory and no game files touched.
+
+### Added
+
+- In-memory model data patch: the donkey's ped model info gets the horse animal type and related fields. Offsets are discovered at runtime by comparing the donkey, mule and horse model infos.
+- In-memory script patch: removes the vanilla "is this a donkey?" checks from the loaded `player_horse` and `shop_horse_shop_sp` bytecode. Breed and catalog data stay intact. The scripts are patched again after every save load and whenever the game reloads them.
+- Stable support: the real donkey can be stabled, set as the main horse and restored with its name and appearance, also after restarting the game.
+- Care prompts for the donkey. On foot, Pat (G), Brush (B) and Feed (R) appear in the lock-on menu. While riding, "Cepillar burro" (R) appears when the donkey is dirty. Brush and feed run the vanilla player_horse item-use sequence: cleaning, item use, cores and bonding.
+- Optional `StabledDonkey.ini` with documented settings.
+- `docs/NOTAS-TECNICAS.md` with the technical findings.
+
+### Removed
+
+- The v0.1 Tennessee Walker proxy (`GET_ENTITY_MODEL` hook) and the experimental stable bridge (`StabledDonkey.bridge`, F7 entity swap). They are no longer needed and caused the Tennessee Walker name and stats to show up.
+
+### Known limitations
+
+- The engine keeps the vanilla care prompts and the TAB-wheel brush greyed out on the donkey. The mod's own prompts replace them, but after each on-foot action the donkey must be locked on again.
+- "Remove saddle" is not available on the donkey.
+- Mules are not supported yet (`PatchMules=0`).
+- Only verified with RDR2 Steam 1.0.1491.50.
+
 ## v0.1.0 — 2026-10-09
 
 Initial public release focused on natural horse-bonding rewards for supported donkey and mule models.

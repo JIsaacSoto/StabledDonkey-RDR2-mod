@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(StabledDonkey VERSION 0.1.0 LANGUAGES CXX)
+project(StabledDonkey VERSION 0.2.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -16,13 +16,20 @@ endif()
 
 add_library(StabledDonkey SHARED
     src/main.cpp
+    src/Config.cpp
+    src/Log.cpp
     src/mount/MountAdapter.cpp
+    src/native/DonkeyCare.cpp
+    src/native/Memory.cpp
+    src/native/ModelInfoPatch.cpp
+    src/native/ScriptPatch.cpp
 )
+
+target_compile_definitions(StabledDonkey PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
 
 target_include_directories(StabledDonkey PRIVATE
     "${SCRIPTHOOK_RDR2_SDK}/inc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/mount"
 )
 
 target_link_directories(StabledDonkey PRIVATE

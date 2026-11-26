@@ -1,0 +1,388 @@
+#include "DonkeyCare.h"
+
+#include "Config.h"
+#include "Log.h"
+#include "mount/MountAdapter.h"
+
+#include "main.h"
+#include "natives.h"
+
+#include <Windows.h>
+
+#include <cmath>
+#include <cstdint>
+#include <cstdlib>
+#include <string>
+
+// Care prompts for the donkey.
+//
+// The engine shows the vanilla pat / brush / feed prompts greyed out for the
+// donkey (and the brush greyed in the TAB wheel) even though the interactions
+// themselves work. The decision is made in engine code: no script flag or
+// donkey model data unlocks it (see docs/NOTAS-TECNICAS.md). This module adds
+// the mod's own prompts instead:
+//   - on foot, inside the donkey's lock-on menu, with the vanilla keys
+//     (the greyed vanilla prompts are hidden on the donkey), and
+//   - "Cepillar burro" while riding it, when it is dirty and standing still.
+// Brush and feed do not reimplement anything: they start the vanilla
+// player_horse item-use sequence, so cleaning, item use, cores and bonding
+// are the game's own.
+namespace StabledDonkey::DonkeyCare
+{
+    namespace
+    {
+        // Natives (alloc8or/rdr3-nativedb-data), called by hash because the
+        // ScriptHookRDR2 SDK header leaves them unnamed.
+        constexpr uint64_t NATIVE_PROMPT_REGISTER_BEGIN = 0x04F97DE45A519419;
+        constexpr uint64_t NATIVE_PROMPT_REGISTER_END = 0xF7AA2696A22AD8B9;
+        constexpr uint64_t NATIVE_PROMPT_SET_CONTROL_ACTION = 0xB5352B7494A08258;
+        constexpr uint64_t NATIVE_PROMPT_SET_TEXT = 0x5DD02A8318420DD7;
+        constexpr uint64_t NATIVE_PROMPT_SET_HOLD_MODE = 0x94073D5CA3F16B7B;
+        constexpr uint64_t NATIVE_PROMPT_HAS_HOLD_MODE_COMPLETED = 0xE0F65F0640EF0617;
+        constexpr uint64_t NATIVE_PROMPT_SET_GROUP = 0x2F11D3A254169EA4;
+        constexpr uint64_t NATIVE_PROMPT_GET_GROUP_ID_FOR_TARGET_ENTITY = 0xB796970BD125FCE8;
+        constexpr uint64_t NATIVE_PROMPT_SET_ENABLED = 0x8A0FB4D03A630D21;
+        constexpr uint64_t NATIVE_PROMPT_SET_VISIBLE = 0x71215ACCFDE075EE;
+        constexpr uint64_t NATIVE_PROMPT_IS_VALID = 0x347469FBDD1589A9;
+        constexpr uint64_t NATIVE_PROMPT_DELETE = 0x00EDE88D4D13CF59;
+        constexpr uint64_t NATIVE_PROMPT_RESTART_MODES = 0xDC6C55DFA2C24EE5;
+        constexpr uint64_t NATIVE_MODIFY_PLAYER_UI_PROMPT_FOR_PED = 0xA3DB37EDF9A74635;
+        constexpr uint64_t NATIVE_VAR_STRING = 0xFA925AC00EB830B9;
+        constexpr uint64_t NATIVE_GET_HASH_KEY = 0xFD340785ADF8CFB7;
+        constexpr uint64_t NATIVE_GET_MISSION_FLAG = 0xB15CD1CF58771DE1;
+        constexpr uint64_t NATIVE_GET_ATTRIBUTE_BASE_RANK = 0x147149F2E909323C;
+        constexpr uint64_t NATIVE_INVENTORY_ID_FROM_PED = 0x13D234A2A3F66E63;
+        constexpr uint64_t NATIVE_INVENTORY_ITEM_COUNT = 0xE787F05DFC977BDE;
+        constexpr uint64_t NATIVE_TASK_ANIMAL_INTERACTION = 0xCD181A959CFDD7F4;
+        constexpr uint64_t NATIVE_IS_ANIMAL_INTERACTION_RUNNING = 0x7FC84E85D98F063D;
+        constexpr uint64_t NATIVE_GET_PLAYER_INTERACTION_TARGET_ENTITY = 0x3EE1F7A8C32F24E1;
+
+        // player_horse.c (1491.50) item-use state machine, Global_1900372:
+        //   [0] state: 0 reset, 1 idle, 2..6 running, 7 cleanup
+        //   [1] item hash, [2] target ped, [5] request flag
+        // The engine prompt handler (func_788) writes [2], [1] and [5] = 1;
+        // the script then validates, starts TASK_ANIMAL_INTERACTION, removes
+        // the item and applies its effects (the brush also cleans the horse).
+        constexpr int ITEM_USE_GLOBAL = 1900372;
+        constexpr int ITEM_USE_STATE = 0;
+        constexpr int ITEM_USE_ITEM = 1;
+        constexpr int ITEM_USE_TARGET = 2;
+        constexpr int ITEM_USE_REQUEST = 5;
+
+        constexpr Hash INTERACTION_POSITIVESHORT = 0x175897C0; // one pat (POSITIVELONG loops while locked on)
+        constexpr int ATTRIBUTE_DIRT = 16;                     // player_horse.c func_652(0)
+        constexpr int PROMPT_MODE_HIDE = 1;                    // ePromptMode: BLOCK 0, HIDE 1, GREY_OUT 2
+        constexpr int HOLD_MS = 500;
+        constexpr ULONGLONG ACTION_COOLDOWN_MS = 2500;
+        constexpr ULONGLONG INVENTORY_POLL_MS = 500;
+        constexpr ULONGLONG HIDE_REFRESH_MS = 250;
+
+        // player_horse.c func_789: horse foods in vanilla preference order.
+        const char *const FOODS[] = {
+            "CONSUMABLE_HAYCUBE", "CONSUMABLE_OAT_CAKES", "CONSUMABLE_APPLE",      "CONSUMABLE_BEETS",
+            "CONSUMABLE_PEAR",    "CONSUMABLE_PEACH",     "CONSUMABLE_CELERY",     "CONSUMABLE_CARROT",
+            "CONSUMABLE_CORN",    "CONSUMABLE_PEPPERMINT", "CONSUMABLE_SUGARCUBE",
+        };
+
+        struct Prompt
+        {
+            int handle = 0;
+        };
+
+        Prompt g_pat, g_brush, g_feed, g_mountedBrush;
+        Ped g_groupPed = 0;
+        int g_groupId = 0;
+        Ped g_hiddenPed = 0;
+        ULONGLONG g_nextHide = 0;
+        ULONGLONG g_cooldownUntil = 0;
+        bool g_refreshAfterAction = false;
+        Hash g_brushItem = 0;
+        int g_brushCount = 0;
+        Hash g_food = 0;
+        ULONGLONG g_nextInventoryPoll = 0;
+
+        Hash Joaat(const char *text)
+        {
+            return invoke<Hash>(NATIVE_GET_HASH_KEY, text);
+        }
+
+        bool IsValid(const Prompt &prompt)
+        {
+            return prompt.handle != 0 && invoke<BOOL>(NATIVE_PROMPT_IS_VALID, prompt.handle) != 0;
+        }
+
+        void Delete(Prompt &prompt)
+        {
+            if (IsValid(prompt))
+                invoke<Void>(NATIVE_PROMPT_DELETE, prompt.handle);
+            prompt.handle = 0;
+        }
+
+        // groupId 0 = standalone prompt (shown in the corner), otherwise the
+        // prompt joins the lock-on menu of that target.
+        void Create(Prompt &prompt, const char *label, const std::string &input, int groupId)
+        {
+            Delete(prompt);
+            const int handle = invoke<int>(NATIVE_PROMPT_REGISTER_BEGIN);
+            invoke<Any>(NATIVE_PROMPT_SET_CONTROL_ACTION, handle, Joaat(input.c_str()));
+            const char *text = invoke<const char *>(NATIVE_VAR_STRING, 10, "LITERAL_STRING", label);
+            invoke<Void>(NATIVE_PROMPT_SET_TEXT, handle, text);
+            invoke<Void>(NATIVE_PROMPT_SET_ENABLED, handle, TRUE);
+            invoke<Void>(NATIVE_PROMPT_SET_VISIBLE, handle, groupId != 0 ? TRUE : FALSE);
+            invoke<Void>(NATIVE_PROMPT_SET_HOLD_MODE, handle, HOLD_MS);
+            if (groupId != 0)
+                invoke<Void>(NATIVE_PROMPT_SET_GROUP, handle, groupId, 0);
+            invoke<Void>(NATIVE_PROMPT_REGISTER_END, handle);
+            prompt.handle = handle;
+        }
+
+        void SetVisible(const Prompt &prompt, bool visible)
+        {
+            if (IsValid(prompt))
+                invoke<Void>(NATIVE_PROMPT_SET_VISIBLE, prompt.handle, visible ? TRUE : FALSE);
+        }
+
+        void SetEnabled(const Prompt &prompt, bool enabled)
+        {
+            if (IsValid(prompt))
+                invoke<Void>(NATIVE_PROMPT_SET_ENABLED, prompt.handle, enabled ? TRUE : FALSE);
+        }
+
+        bool Completed(const Prompt &prompt)
+        {
+            return IsValid(prompt) && invoke<BOOL>(NATIVE_PROMPT_HAS_HOLD_MODE_COMPLETED, prompt.handle) != 0;
+        }
+
+        void DeleteGroupPrompts()
+        {
+            Delete(g_pat);
+            Delete(g_brush);
+            Delete(g_feed);
+            g_groupPed = 0;
+            g_groupId = 0;
+        }
+
+        void SetupGroupPrompts(Ped donkey)
+        {
+            const int groupId = invoke<int>(NATIVE_PROMPT_GET_GROUP_ID_FOR_TARGET_ENTITY, donkey);
+            if (donkey == g_groupPed && groupId == g_groupId && IsValid(g_pat) && IsValid(g_brush) &&
+                IsValid(g_feed))
+                return;
+            g_groupPed = donkey;
+            g_groupId = groupId;
+            Create(g_pat, "Acariciar", g_config.careInputPat, groupId);
+            Create(g_brush, "Cepillar", g_config.careInputBrush, groupId);
+            Create(g_feed, "Alimentar", g_config.careInputFeed, groupId);
+        }
+
+        // Hides the greyed vanilla prompts on the donkey so ours can use the
+        // vanilla keys. The hide mode is per ped and does not touch horses.
+        void HideVanillaPrompts(Ped donkey, ULONGLONG now)
+        {
+            if (donkey == g_hiddenPed && now < g_nextHide)
+                return;
+            g_hiddenPed = donkey;
+            g_nextHide = now + HIDE_REFRESH_MS;
+            const Player player = PLAYER::PLAYER_ID();
+            const std::string &list = g_config.hideVanillaPromptTypes;
+            size_t start = 0;
+            while (start < list.size())
+            {
+                size_t end = list.find_first_of(",; ", start);
+                if (end == std::string::npos)
+                    end = list.size();
+                const int type = std::atoi(list.substr(start, end - start).c_str());
+                start = end + 1;
+                if (type > 0)
+                    invoke<Void>(NATIVE_MODIFY_PLAYER_UI_PROMPT_FOR_PED, player, donkey, type, PROMPT_MODE_HIDE, TRUE);
+            }
+        }
+
+        int ItemCount(Hash item)
+        {
+            const int inventory = invoke<int>(NATIVE_INVENTORY_ID_FROM_PED, PLAYER::PLAYER_PED_ID());
+            int count = invoke<int>(NATIVE_INVENTORY_ITEM_COUNT, inventory, item, FALSE);
+            if (count <= 0 && inventory != 1)
+                count = invoke<int>(NATIVE_INVENTORY_ITEM_COUNT, 1, item, FALSE);
+            return count;
+        }
+
+        void PollInventory(ULONGLONG now)
+        {
+            if (now < g_nextInventoryPoll)
+                return;
+            g_nextInventoryPoll = now + INVENTORY_POLL_MS;
+            if (!g_brushItem)
+                g_brushItem = Joaat("KIT_HORSE_BRUSH");
+            g_brushCount = ItemCount(g_brushItem);
+            g_food = 0;
+            for (const char *name : FOODS)
+            {
+                const Hash item = Joaat(name);
+                if (ItemCount(item) > 0)
+                {
+                    g_food = item;
+                    break;
+                }
+            }
+        }
+
+        UINT64 *ItemUseSlot(int field)
+        {
+            return getGlobalPtr(ITEM_USE_GLOBAL + field);
+        }
+
+        bool ItemUseIdle()
+        {
+            const UINT64 *state = ItemUseSlot(ITEM_USE_STATE);
+            const UINT64 *request = ItemUseSlot(ITEM_USE_REQUEST);
+            return state && request && *state == 1 && *request == 0;
+        }
+
+        // Same writes as the vanilla engine-prompt handler (player_horse func_788).
+        bool RequestItemUse(Ped donkey, Hash item, const char *what)
+        {
+            UINT64 *state = ItemUseSlot(ITEM_USE_STATE);
+            UINT64 *itemSlot = ItemUseSlot(ITEM_USE_ITEM);
+            UINT64 *target = ItemUseSlot(ITEM_USE_TARGET);
+            UINT64 *request = ItemUseSlot(ITEM_USE_REQUEST);
+            if (!state || !itemSlot || !target || !request)
+                return false;
+            if (*state > 7)
+            {
+                Log("Care: %s refused, unexpected item-use state %llu (unsupported game build?)", what, *state);
+                return false;
+            }
+            if (*state != 1 || *request != 0)
+                return false;
+            *target = static_cast<UINT64>(static_cast<uint32_t>(donkey));
+            *itemSlot = static_cast<UINT64>(item);
+            *request = 1;
+            Log("Care: %s (item 0x%08X)", what, item);
+            return true;
+        }
+
+        float Distance(Entity a, Entity b)
+        {
+            const Vector3 pa = ENTITY::GET_ENTITY_COORDS(a, TRUE, FALSE);
+            const Vector3 pb = ENTITY::GET_ENTITY_COORDS(b, TRUE, FALSE);
+            const float dx = pa.x - pb.x, dy = pa.y - pb.y, dz = pa.z - pb.z;
+            return sqrtf(dx * dx + dy * dy + dz * dz);
+        }
+
+        bool IsDonkey(Entity entity)
+        {
+            return entity && ENTITY::DOES_ENTITY_EXIST(entity) && ENTITY::IS_ENTITY_A_PED(entity) &&
+                   ENTITY::GET_ENTITY_MODEL(entity) == Models::DONKEY;
+        }
+
+        Entity LockOnTarget()
+        {
+            Entity target = 0;
+            if (!invoke<BOOL>(NATIVE_GET_PLAYER_INTERACTION_TARGET_ENTITY, PLAYER::PLAYER_ID(), &target, FALSE, FALSE))
+                return 0;
+            return target;
+        }
+
+        void ActionStarted(ULONGLONG now)
+        {
+            g_cooldownUntil = now + ACTION_COOLDOWN_MS;
+            g_refreshAfterAction = true;
+        }
+
+        void UpdateOnFoot(Ped player, Ped donkey, bool idle, ULONGLONG now)
+        {
+            SetupGroupPrompts(donkey);
+            const bool isNear = Distance(player, donkey) <= g_config.careMaxDistance;
+            SetVisible(g_pat, isNear);
+            SetVisible(g_brush, isNear && g_brushCount > 0);
+            SetVisible(g_feed, isNear && g_food != 0);
+            SetEnabled(g_pat, isNear && idle);
+            SetEnabled(g_brush, isNear && idle && g_brushCount > 0);
+            SetEnabled(g_feed, isNear && idle && g_food != 0);
+            if (!isNear)
+                return;
+            HideVanillaPrompts(donkey, now);
+            if (!idle)
+                return;
+
+            if (Completed(g_pat))
+            {
+                invoke<Void>(NATIVE_TASK_ANIMAL_INTERACTION, player, donkey, INTERACTION_POSITIVESHORT,
+                             static_cast<Hash>(0), FALSE);
+                Log("Care: pat");
+                ActionStarted(now);
+            }
+            else if (g_brushCount > 0 && Completed(g_brush))
+            {
+                if (RequestItemUse(donkey, g_brushItem, "brush"))
+                    ActionStarted(now);
+            }
+            else if (g_food != 0 && Completed(g_feed))
+            {
+                if (RequestItemUse(donkey, g_food, "feed"))
+                    ActionStarted(now);
+            }
+        }
+
+        void UpdateMounted(Ped player, Ped donkey, bool idle, ULONGLONG now)
+        {
+            if (!IsValid(g_mountedBrush))
+                Create(g_mountedBrush, "Cepillar burro", g_config.careInputMountedBrush, 0);
+
+            const bool riding = PED::IS_PED_ON_MOUNT(player) && PED::GET_MOUNT(player) == donkey;
+            const int dirt = riding ? invoke<int>(NATIVE_GET_ATTRIBUTE_BASE_RANK, donkey, ATTRIBUTE_DIRT) : 0;
+            // Only when it matters, so the key does not get in the way.
+            const bool show = riding && g_brushCount > 0 && dirt >= g_config.careMountedBrushMinDirt &&
+                              !invoke<BOOL>(NATIVE_GET_MISSION_FLAG) && ENTITY::GET_ENTITY_SPEED(donkey) < 0.5f;
+            SetVisible(g_mountedBrush, show);
+            SetEnabled(g_mountedBrush, show && idle);
+            if (show && idle && Completed(g_mountedBrush) && RequestItemUse(donkey, g_brushItem, "mounted brush"))
+                ActionStarted(now);
+        }
+    }
+
+    void Update(Ped trackedDonkey)
+    {
+        if (!g_config.carePrompts || !g_config.patchDonkey)
+            return;
+        const Ped player = PLAYER::PLAYER_PED_ID();
+        if (!player || !ENTITY::DOES_ENTITY_EXIST(player))
+            return;
+
+        // Prompts registered before a save load are gone.
+        if (g_pat.handle && !IsValid(g_pat))
+            DeleteGroupPrompts();
+        if (g_mountedBrush.handle && !IsValid(g_mountedBrush))
+            g_mountedBrush.handle = 0;
+
+        const Entity lockOn = LockOnTarget();
+        const Ped donkey = IsDonkey(lockOn) ? lockOn : (IsDonkey(trackedDonkey) ? trackedDonkey : 0);
+        if (!donkey || ENTITY::IS_ENTITY_DEAD(donkey))
+        {
+            if (g_groupPed)
+                DeleteGroupPrompts();
+            SetVisible(g_mountedBrush, false);
+            return;
+        }
+
+        const ULONGLONG now = GetTickCount64();
+        const bool idle = ItemUseIdle() && now >= g_cooldownUntil &&
+                          !invoke<BOOL>(NATIVE_IS_ANIMAL_INTERACTION_RUNNING, player);
+
+        // A lock-on menu prompt stays greyed after it fired; recreating ours
+        // once the animation is over brings them back.
+        if (idle && g_refreshAfterAction)
+        {
+            g_refreshAfterAction = false;
+            DeleteGroupPrompts();
+            if (IsValid(g_mountedBrush))
+                invoke<Void>(NATIVE_PROMPT_RESTART_MODES, g_mountedBrush.handle);
+        }
+
+        PollInventory(now);
+        if (!PED::IS_PED_ON_MOUNT(player))
+            UpdateOnFoot(player, donkey, idle, now);
+        UpdateMounted(player, donkey, idle, now);
+    }
+}
