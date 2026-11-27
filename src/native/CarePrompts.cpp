@@ -42,6 +42,8 @@ namespace StabledDonkey::CarePrompts
         constexpr uint64_t NATIVE_PROMPT_SET_HOLD_MODE = 0x94073D5CA3F16B7B;
         constexpr uint64_t NATIVE_PROMPT_SET_PRIORITY = 0xCA24F528D0D16289; // ePromptPriority: Low 0 .. MissionCritical 3
         constexpr uint64_t NATIVE_PROMPT_HAS_HOLD_MODE_COMPLETED = 0xE0F65F0640EF0617;
+        constexpr uint64_t NATIVE_PROMPT_SET_STANDARD_MODE = 0xCC6656799977741B;
+        constexpr uint64_t NATIVE_PROMPT_HAS_STANDARD_MODE_COMPLETED = 0xC92AC953F0A982AE;
         constexpr uint64_t NATIVE_PROMPT_SET_GROUP = 0x2F11D3A254169EA4;
         constexpr uint64_t NATIVE_PROMPT_GET_GROUP_ID_FOR_TARGET_ENTITY = 0xB796970BD125FCE8;
         constexpr uint64_t NATIVE_PROMPT_SET_ENABLED = 0x8A0FB4D03A630D21;
@@ -57,7 +59,6 @@ namespace StabledDonkey::CarePrompts
         constexpr uint64_t NATIVE_INVENTORY_ID_FROM_PED = 0x13D234A2A3F66E63;
         constexpr uint64_t NATIVE_INVENTORY_ITEM_COUNT = 0xE787F05DFC977BDE;
         constexpr uint64_t NATIVE_TASK_ANIMAL_INTERACTION = 0xCD181A959CFDD7F4;
-        constexpr uint64_t NATIVE_IS_ANIMAL_INTERACTION_RUNNING = 0x7FC84E85D98F063D;
         constexpr uint64_t NATIVE_GET_PLAYER_INTERACTION_TARGET_ENTITY = 0x3EE1F7A8C32F24E1;
         constexpr uint64_t NATIVE_DOES_TEXT_LABEL_EXIST = 0x73C258C68D6F55B6;
         constexpr uint64_t NATIVE_GET_LABEL_TEXT = 0x3429670F9B9EF2D3; // _GET_LABEL_TEXT_2
@@ -138,6 +139,7 @@ namespace StabledDonkey::CarePrompts
         struct Prompt
         {
             int handle = 0;
+            bool hold = false; // hold mode (HOLD_MS) instead of a single press
         };
 
         Prompt g_pat, g_brush, g_feed, g_mountedBrush;
@@ -205,8 +207,10 @@ namespace StabledDonkey::CarePrompts
         }
 
         // groupId 0 = standalone prompt (shown in the corner), otherwise the
-        // prompt joins the lock-on menu of that target.
-        void Create(Prompt &prompt, const char *label, const std::string &input, int groupId)
+        // prompt joins the lock-on menu of that target. On-foot prompts fire
+        // on a single press like the vanilla ones; the mounted brush is a
+        // hold so it is not triggered by accident while riding.
+        void Create(Prompt &prompt, const char *label, const std::string &input, int groupId, bool hold)
         {
             Delete(prompt);
             const int handle = invoke<int>(NATIVE_PROMPT_REGISTER_BEGIN);
@@ -215,7 +219,11 @@ namespace StabledDonkey::CarePrompts
             invoke<Void>(NATIVE_PROMPT_SET_TEXT, handle, text);
             invoke<Void>(NATIVE_PROMPT_SET_ENABLED, handle, TRUE);
             invoke<Void>(NATIVE_PROMPT_SET_VISIBLE, handle, groupId != 0 ? TRUE : FALSE);
-            invoke<Void>(NATIVE_PROMPT_SET_HOLD_MODE, handle, HOLD_MS);
+            if (hold)
+                invoke<Void>(NATIVE_PROMPT_SET_HOLD_MODE, handle, HOLD_MS);
+            else
+                invoke<Void>(NATIVE_PROMPT_SET_STANDARD_MODE, handle, FALSE); // FALSE: completes on press
+            prompt.hold = hold;
             // On a mule the active vanilla pat covered our prompts; a higher
             // priority keeps them in the lock-on menu.
             invoke<Void>(NATIVE_PROMPT_SET_PRIORITY, handle, g_config.carePromptPriority);
@@ -239,7 +247,11 @@ namespace StabledDonkey::CarePrompts
 
         bool Completed(const Prompt &prompt)
         {
-            return IsValid(prompt) && invoke<BOOL>(NATIVE_PROMPT_HAS_HOLD_MODE_COMPLETED, prompt.handle) != 0;
+            if (!IsValid(prompt))
+                return false;
+            if (prompt.hold)
+                return invoke<BOOL>(NATIVE_PROMPT_HAS_HOLD_MODE_COMPLETED, prompt.handle) != 0;
+            return invoke<BOOL>(NATIVE_PROMPT_HAS_STANDARD_MODE_COMPLETED, prompt.handle, 0) != 0;
         }
 
         void DeleteGroupPrompts()
@@ -260,9 +272,9 @@ namespace StabledDonkey::CarePrompts
             g_groupPed = donkey;
             g_groupId = groupId;
             LogGameTexts();
-            Create(g_pat, GameText(LABEL_PAT, "Pat").c_str(), g_config.careInputPat, groupId);
-            Create(g_brush, GameText(LABEL_BRUSH, "Brush").c_str(), g_config.careInputBrush, groupId);
-            Create(g_feed, GameText(LABEL_FEED, "Feed").c_str(), g_config.careInputFeed, groupId);
+            Create(g_pat, GameText(LABEL_PAT, "Pat").c_str(), g_config.careInputPat, groupId, false);
+            Create(g_brush, GameText(LABEL_BRUSH, "Brush").c_str(), g_config.careInputBrush, groupId, false);
+            Create(g_feed, GameText(LABEL_FEED, "Feed").c_str(), g_config.careInputFeed, groupId, false);
         }
 
         // Hides the greyed vanilla prompts on the donkey so ours can use the
@@ -326,11 +338,18 @@ namespace StabledDonkey::CarePrompts
             return getGlobalPtr(ITEM_USE_GLOBAL + field);
         }
 
+        // Script ints live in the low 32 bits of a global slot; the high bits
+        // can hold leftovers (seen 0x271'00000005 while brushing).
+        uint32_t SlotInt(const UINT64 *slot)
+        {
+            return static_cast<uint32_t>(*slot);
+        }
+
         bool ItemUseIdle()
         {
             const UINT64 *state = ItemUseSlot(ITEM_USE_STATE);
             const UINT64 *request = ItemUseSlot(ITEM_USE_REQUEST);
-            return state && request && *state == 1 && *request == 0;
+            return state && request && SlotInt(state) == 1 && SlotInt(request) == 0;
         }
 
         // Same writes as the vanilla engine-prompt handler (player_horse func_788).
@@ -342,12 +361,12 @@ namespace StabledDonkey::CarePrompts
             UINT64 *request = ItemUseSlot(ITEM_USE_REQUEST);
             if (!state || !itemSlot || !target || !request)
                 return false;
-            if (*state > 7)
+            if (SlotInt(state) > 7)
             {
-                Log("Care: %s refused, unexpected item-use state %llu (unsupported game build?)", what, *state);
+                Log("Care: %s refused, unexpected item-use state %u (unsupported game build?)", what, SlotInt(state));
                 return false;
             }
-            if (*state != 1 || *request != 0)
+            if (SlotInt(state) != 1 || SlotInt(request) != 0)
                 return false;
             *target = static_cast<UINT64>(static_cast<uint32_t>(donkey));
             *itemSlot = static_cast<UINT64>(item);
@@ -458,7 +477,7 @@ namespace StabledDonkey::CarePrompts
                 g_mountedBrushForMule = isMule;
                 LogGameTexts();
                 Create(g_mountedBrush, GameText(LABEL_BRUSH, isMule ? "Brush mule" : "Brush donkey").c_str(),
-                       g_config.careInputMountedBrush, 0);
+                       g_config.careInputMountedBrush, 0, true);
             }
 
             const int dirt = mount ? invoke<int>(NATIVE_GET_ATTRIBUTE_BASE_RANK, mount, ATTRIBUTE_DIRT) : 0;
@@ -517,11 +536,15 @@ namespace StabledDonkey::CarePrompts
         }
 
         const ULONGLONG now = GetTickCount64();
-        const bool idle = ItemUseIdle() && now >= g_cooldownUntil &&
-                          !invoke<BOOL>(NATIVE_IS_ANIMAL_INTERACTION_RUNNING, player);
+        // Not IS_ANIMAL_INTERACTION_RUNNING: after the first action it stays
+        // true for as long as the lock-on is held (test 2026-11-27), which
+        // kept the prompts greyed until the player locked on again. The
+        // cooldown covers the pat animation; brush and feed also wait for the
+        // vanilla item-use sequence.
+        const bool idle = ItemUseIdle() && now >= g_cooldownUntil;
 
         // A lock-on menu prompt stays greyed after it fired; recreating ours
-        // once the animation is over brings them back.
+        // once the action is over brings them back.
         if (idle && g_refreshAfterAction)
         {
             g_refreshAfterAction = false;

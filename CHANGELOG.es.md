@@ -2,6 +2,19 @@
 
 [English](CHANGELOG.md) | **Español**
 
+## v0.7.0 — 2026-11-27
+
+Cuidados a pie sin volver a fijar al animal.
+
+### Cambiado
+
+- Los botones a pie Acariciar, Cepillar y Alimentar se activan con una pulsación simple, como los del juego. "Cepillar" montado sigue siendo de mantener pulsado, para no activarlo sin querer al montar.
+
+### Corregido
+
+- Después de cada acción a pie los botones quedaban en gris hasta volver a fijar al animal (clic derecho). El juego no suelta el fijado, como se creía: mantiene la interacción con el animal "en curso" mientras se mantiene fijado, y el mod esperaba a que terminara. Ahora los botones vuelven en cuanto termina la acción (2,5 s, y en Cepillar y Alimentar cuando el juego termina de usar el objeto). Probado con el burro, la mula y la mula pintada.
+- El estado de uso de objetos de `player_horse` se lee como valor de 32 bits (durante el cepillado se vieron restos en los bits altos).
+
 ## v0.6.0 — 2026-11-26
 
 SuperDonkMode: una mejora opcional de estadísticas para el burro y las mulas.

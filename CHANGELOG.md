@@ -2,6 +2,19 @@
 
 **English** | [Español](CHANGELOG.es.md)
 
+## v0.7.0 — 2026-11-27
+
+On-foot care without locking on again.
+
+### Changed
+
+- The on-foot Pat, Brush and Feed prompts fire on a single press, like the game's. The mounted Brush is still a hold, so it does not fire by accident while riding.
+
+### Fixed
+
+- After each on-foot action the prompts stayed greyed until the animal was locked on again (right click). The game does not drop the lock-on, as was thought: it keeps the animal interaction "running" for as long as the lock-on is held, and the mod waited for it to end. Now the prompts come back as soon as the action is over (2.5 s, and for Brush and Feed when the game has finished using the item). Tested on the donkey, the mule and the painted mule.
+- The item-use state of `player_horse` is read as a 32-bit value (leftover high bits were seen while brushing).
+
 ## v0.6.0 — 2026-11-26
 
 SuperDonkMode: an optional stat boost for the donkey and the mules.
