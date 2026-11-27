@@ -61,7 +61,9 @@ Solución: botones propios.
 - Textos de los botones: etiquetas del propio juego, leídas con `DOES_TEXT_LABEL_EXIST` (`0x73C258C68D6F55B6`) y `_GET_LABEL_TEXT_2` (`0x3429670F9B9EF2D3`); si faltan, texto en inglés. Comprobado en español (idioma 11 de `GET_CURRENT_LANGUAGE`): `INTERACT_HORSE` "Acariciar", `BRUSH_HORSE` "Cepillar", `FEED_HORSE` "Alimentar", `CALM_HORSE` "Tranquilizar", `REMOVE_SADDLE` "Quitar silla", `MOUNT_HORSE` "Montar caballo", `BREED_DONKEY` "Burro", `BREED_MULE` "Mula", `BREED_MULE_PAINTED` "Mula (manchada)". En inglés, `INTERACT_HORSE` es "Pat" (visto en los scripts decompilados); los demás textos en inglés no están comprobados. No hay etiqueta de "cepillar burro"; montado se usa `BRUSH_HORSE`.
 - Montado, "Cepillar" usa `INPUT_CONTEXT_X`, porque los controles `INPUT_INTERACT_*` no existen montado. Solo aparece con suciedad ≥ 25 (atributo 16), el burro quieto y sin misión.
 
-Limitación: durante la animación el motor suelta el objetivo fijado y no lo recupera aunque se mantenga el clic derecho. No hay native para forzarlo.
+- Los botones a pie se activan con una pulsación simple, como los del juego: `_UI_PROMPT_SET_STANDARD_MODE` (`0xCC6656799977741B`, modo de soltar false = se completa al pulsar) y `_UI_PROMPT_HAS_STANDARD_MODE_COMPLETED` (`0xC92AC953F0A982AE`). "Cepillar" montado es de mantener 0,5 s (`_UI_PROMPT_SET_HOLD_MODE`) para no activarlo sin querer al montar.
+
+Repetir acciones (v0.7.0). Hasta la v0.6.0 los botones quedaban en gris tras cada acción hasta volver a fijar al animal. Se creía que el motor soltaba el objetivo fijado durante la animación. Las pruebas de la v0.7.0 demostraron que no: `GET_PLAYER_INTERACTION_TARGET_ENTITY` devuelve el animal todo el tiempo. La causa era la condición del propio mod: `_IS_ANIMAL_INTERACTION_RUNNING` sigue en true desde la primera acción mientras se mantiene el fijado, y el mod esperaba a que volviera a false. Ahora los botones solo esperan 2,5 s (cubre la caricia) y, en cepillar y alimentar, a que la máquina de uso de objetos vuelva a estar libre (1); después se recrean, porque un botón del menú de fijado queda en gris una vez usado. Las casillas de uso de objetos se leen como enteros de 32 bits: durante el cepillado se vieron restos en los bits altos (`0x271'00000005`). También se probaron y descartaron los flags de configuración `PCF_ForceInteractionLockonOnTargetPed` (297) y `PCF_DisableInteractionLockonOnTargetPed` (301), que `player_horse` `func_343` pone (true / false) en la montura del jugador. Caballos, burro y mulas ya los tienen así, y forzarlos no cambia nada.
 
 ## Probado en juego (v0.2.0)
 
@@ -109,10 +111,9 @@ Limitación: durante la animación el motor suelta el objetivo fijado y no lo re
 | Uso | Hash |
 |---|---|
 | `TASK_ANIMAL_INTERACTION` | `0xCD181A959CFDD7F4` |
-| `_IS_ANIMAL_INTERACTION_RUNNING` | `0x7FC84E85D98F063D` |
 | `GET_PLAYER_INTERACTION_TARGET_ENTITY` | `0x3EE1F7A8C32F24E1` |
 | `_MODIFY_PLAYER_UI_PROMPT_FOR_PED` | `0xA3DB37EDF9A74635` |
-| `_UI_PROMPT_*` (register, text, hold, group, visible, enabled) | ver `CarePrompts.cpp` |
+| `_UI_PROMPT_*` (register, text, hold, standard, group, visible, enabled) | ver `CarePrompts.cpp` |
 | `_INVENTORY_GET_INVENTORY_ITEM_COUNT_WITH_ITEMID` | `0xE787F05DFC977BDE` |
 | `GET_ATTRIBUTE_BASE_RANK` (suciedad = 16) | `0x147149F2E909323C` |
 | `GET_MISSION_FLAG` | `0xB15CD1CF58771DE1` |

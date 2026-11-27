@@ -6,15 +6,15 @@
 
 StabledDonkey hace que el burro y la mula funcionen como una raza de caballo más, usando los propios sistemas del juego. No reemplaza sus modelos por caballos ni modifica archivos del juego: todos los cambios se aplican en memoria al arrancar.
 
-## Qué hace (v0.6.0)
+## Qué hace (v0.7.0)
 
 ### Burro
 
 - **Vínculo natural:** montar, alimentar, cepillar y acariciar dan XP de vínculo, con el toast y las subidas de nivel del juego.
 - **Ficha y estadísticas:** "Mostrar información" y `Personaje → Caballo` muestran la ficha del burro con sus datos.
 - **Establo:** puedes guardar el burro, elegirlo como montura principal y recuperarlo. Vuelve el burro real, con su nombre y su aspecto, también después de cerrar el juego.
-- **Cuidados a pie:** al fijar el burro con clic derecho aparecen **Acariciar (G)**, **Cepillar (B)** y **Alimentar (R)**, las mismas teclas que con un caballo. Como en el juego original, acariciar está disponible desde el principio (es la forma de empezar el vínculo) y cepillar y alimentar piden vínculo. Cepillar lo limpia y alimentar gasta la comida y aplica sus efectos, igual que en el juego.
-- **Cuidados montado:** acariciar (G) y alimentar funcionan como en un caballo. Para cepillar aparece **"Cepillar" (R)** cuando el burro está sucio, quieto y no estás en una misión.
+- **Cuidados a pie:** al fijar el burro con clic derecho aparecen **Acariciar (G)**, **Cepillar (B)** y **Alimentar (R)**, las mismas teclas que con un caballo. Como en el juego original, acariciar está disponible desde el principio (es la forma de empezar el vínculo) y cepillar y alimentar piden vínculo. Cepillar lo limpia y alimentar gasta la comida y aplica sus efectos, igual que en el juego. Basta con una pulsación y puedes repetir sin dejar de fijarlo.
+- **Cuidados montado:** acariciar (G) y alimentar funcionan como en un caballo. Para cepillar aparece **"Cepillar" (R)** (mantener pulsado) cuando el burro está sucio, quieto y no estás en una misión.
 - Alimentar usa la misma comida que el juego: primero la de caballo y, si no te queda, las hierbas que el juego también acepta (ginseng, salvia, menta…).
 - Los textos de los botones son los del propio juego, así que salen en el idioma que tengas.
 - Responde al silbido, aparece en el mapa como tu caballo y tiene las opciones de dirigir, seguir, quedarse y huir.
@@ -38,7 +38,6 @@ Desactivado por defecto (`SuperDonkMode=0`). Al activarlo, el burro o la mula qu
 
 ## Limitaciones conocidas
 
-- Los botones de cuidado a pie son del mod. Después de cada acción a pie hay que soltar y volver a fijar al animal (clic derecho) para repetir.
 - En el establo, el título de las dos mulas dice "Burro": el juego no tiene un item de catálogo para las mulas y el mod les da el del burro. La raza sí dice "Mula".
 - El cepillo del menú TAB sale gris en burro y mula (en el caballo funciona); usa "Cepillar" montado.
 - La opción "Quitar silla" no aparece en el burro ni en la mula, ni siquiera como montura principal.

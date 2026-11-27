@@ -6,15 +6,15 @@
 
 StabledDonkey makes the donkey and the mule work like any other horse breed, using the game's own systems. It does not replace their models with horses or modify any game files: every change is applied in memory at startup.
 
-## What it does (v0.6.0)
+## What it does (v0.7.0)
 
 ### Donkey
 
 - **Natural bonding:** riding, feeding, brushing and patting give bonding XP, with the game's own toast and level-ups.
 - **Info card and stats:** "Show Info" and `Player → Horse` show the donkey's card with its data.
 - **Stable:** you can store the donkey, set it as your main horse and take it out again. The real donkey comes back, with its name and appearance, also after restarting the game.
-- **On-foot care:** lock on to the donkey (right click) to get **Pat (G)**, **Brush (B)** and **Feed (R)**, the same keys as a horse. As in the base game, Pat is available from the start (it is how the bond begins), while Brush and Feed need some bond. Brushing cleans it, and feeding uses up the food and applies its effects, just like in the game.
-- **Mounted care:** pat (G) and feed work as on a horse. To brush, a **Brush (R)** prompt appears when the donkey is dirty, standing still and you are not in a mission.
+- **On-foot care:** lock on to the donkey (right click) to get **Pat (G)**, **Brush (B)** and **Feed (R)**, the same keys as a horse. As in the base game, Pat is available from the start (it is how the bond begins), while Brush and Feed need some bond. Brushing cleans it, and feeding uses up the food and applies its effects, just like in the game. A single press is enough, and you can repeat while you keep it locked on.
+- **Mounted care:** pat (G) and feed work as on a horse. To brush, a **Brush (R)** prompt (hold) appears when the donkey is dirty, standing still and you are not in a mission.
 - Feeding uses the same food as the game: horse food first and, if you have none left, the herbs the game also accepts (ginseng, sage, mint…).
 - The prompt texts are the game's own, so they show in your game language.
 - It answers the whistle, shows on the map as your horse and has the lead, follow, stay and flee options.
@@ -38,7 +38,6 @@ Off by default (`SuperDonkMode=0`). When on, the donkey or mule you ride gets be
 
 ## Known limitations
 
-- The on-foot care prompts belong to the mod. After each on-foot action you have to release and lock on to the animal again (right click) to repeat.
 - In the stable, the title of both mules is the donkey's: the game has no catalog item for mules, so the mod gives them the donkey's. Their breed is still shown as mule.
 - The TAB-wheel brush is greyed out on donkeys and mules (it works on horses); use the mounted Brush instead.
 - The "Remove Saddle" option does not appear on the donkey or the mule, not even as the main horse.

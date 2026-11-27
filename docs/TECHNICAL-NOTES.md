@@ -61,7 +61,9 @@ Solution: the mod's own prompts.
 - Prompt texts: the game's own labels, read with `DOES_TEXT_LABEL_EXIST` (`0x73C258C68D6F55B6`) and `_GET_LABEL_TEXT_2` (`0x3429670F9B9EF2D3`); English text if they are missing. Checked in Spanish (language 11 from `GET_CURRENT_LANGUAGE`): `INTERACT_HORSE` "Acariciar", `BRUSH_HORSE` "Cepillar", `FEED_HORSE` "Alimentar", `CALM_HORSE` "Tranquilizar", `REMOVE_SADDLE` "Quitar silla", `MOUNT_HORSE` "Montar caballo", `BREED_DONKEY` "Burro", `BREED_MULE` "Mula", `BREED_MULE_PAINTED` "Mula (manchada)". In English, `INTERACT_HORSE` is "Pat" (seen in the decompiled scripts); the other English texts are not checked. There is no "brush donkey" label; the mounted prompt uses `BRUSH_HORSE`.
 - Mounted, Brush uses `INPUT_CONTEXT_X`, because the `INPUT_INTERACT_*` controls do not exist while mounted. It only appears with dirt ≥ 25 (attribute 16), the donkey standing still and no mission.
 
-Limitation: during the animation the engine drops the lock-on target and does not take it back even if right click is held. There is no native to force it.
+- On-foot prompts fire on a single press, like the game's: `_UI_PROMPT_SET_STANDARD_MODE` (`0xCC6656799977741B`, release mode false = completes on press) and `_UI_PROMPT_HAS_STANDARD_MODE_COMPLETED` (`0xC92AC953F0A982AE`). The mounted Brush is a 0.5 s hold (`_UI_PROMPT_SET_HOLD_MODE`) so it does not fire by accident while riding.
+
+Repeating actions (v0.7.0). Up to v0.6.0 the prompts stayed greyed after each action until the player locked on again. It was believed that the engine dropped the lock-on target during the animation. The v0.7.0 tests showed it does not: `GET_PLAYER_INTERACTION_TARGET_ENTITY` returns the animal the whole time. The cause was the mod's own gate: `_IS_ANIMAL_INTERACTION_RUNNING` stays true from the first action for as long as the lock-on is held, and the mod waited for it to clear. Now the prompts only wait for a 2.5 s cooldown (it covers the pat) and, for brush and feed, for the item-use state to be idle again (1); after that they are recreated, because a lock-on menu prompt stays greyed once it fired. The item-use slots are read as 32-bit ints: leftover high bits were seen while brushing (`0x271'00000005`). Also tried and ruled out: the ped config flags `PCF_ForceInteractionLockonOnTargetPed` (297) and `PCF_DisableInteractionLockonOnTargetPed` (301), which `player_horse` `func_343` sets (true / false) on the player's horse. Horses, the donkey and the mules already have them that way, and forcing them changes nothing.
 
 ## Tested in game (v0.2.0)
 
@@ -109,10 +111,9 @@ Limitation: during the animation the engine drops the lock-on target and does no
 | Use | Hash |
 |---|---|
 | `TASK_ANIMAL_INTERACTION` | `0xCD181A959CFDD7F4` |
-| `_IS_ANIMAL_INTERACTION_RUNNING` | `0x7FC84E85D98F063D` |
 | `GET_PLAYER_INTERACTION_TARGET_ENTITY` | `0x3EE1F7A8C32F24E1` |
 | `_MODIFY_PLAYER_UI_PROMPT_FOR_PED` | `0xA3DB37EDF9A74635` |
-| `_UI_PROMPT_*` (register, text, hold, group, visible, enabled) | see `CarePrompts.cpp` |
+| `_UI_PROMPT_*` (register, text, hold, standard, group, visible, enabled) | see `CarePrompts.cpp` |
 | `_INVENTORY_GET_INVENTORY_ITEM_COUNT_WITH_ITEMID` | `0xE787F05DFC977BDE` |
 | `GET_ATTRIBUTE_BASE_RANK` (dirt = 16) | `0x147149F2E909323C` |
 | `GET_MISSION_FLAG` | `0xB15CD1CF58771DE1` |
