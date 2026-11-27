@@ -6,7 +6,7 @@
 
 StabledDonkey hace que el burro y la mula funcionen como una raza de caballo más, usando los propios sistemas del juego. No reemplaza sus modelos por caballos ni modifica archivos del juego: todos los cambios se aplican en memoria al arrancar.
 
-## Qué hace (v0.5.0)
+## Qué hace (v0.6.0)
 
 ### Burro
 
@@ -27,6 +27,15 @@ StabledDonkey hace que el burro y la mula funcionen como una raza de caballo má
 - **Cuidados a pie:** **Acariciar (G)**, **Cepillar (B)** y **Alimentar (R)** del mod, porque los originales de la mula a veces salen grises. Acariciar está disponible desde el principio; cepillar y alimentar piden vínculo.
 - **Cuidados montado:** acariciar y alimentar como un caballo, y **"Cepillar" (R)** cuando está sucia.
 
+### SuperDonkMode (opcional)
+
+Desactivado por defecto (`SuperDonkMode=0`). Al activarlo, el burro o la mula que montas mejora sus estadísticas con las funciones de atributos del propio juego, como un mod de mejora. Por defecto recibe la velocidad y la aceleración del Árabe blanco y la salud y la energía del Turkmeno bayo oscuro; todos los valores se pueden cambiar en el `.ini`.
+
+- **Mulas:** se aplican las cuatro (salud, energía, velocidad y aceleración).
+- **Burro:** se aplican velocidad y aceleración. Su salud y su energía vienen fijas en su modelo y no cambian, pero ya son más o menos las de un Turkmeno (energía) o más (salud).
+- El menú TAB y "Mostrar información" muestran las estadísticas mejoradas. El establo y `Personaje → Caballo` muestran las originales de la raza.
+- Las bonificaciones de la silla se suman encima, como en cualquier caballo.
+
 ## Limitaciones conocidas
 
 - Los botones de cuidado a pie son del mod. Después de cada acción a pie hay que soltar y volver a fijar al animal (clic derecho) para repetir.
@@ -34,6 +43,7 @@ StabledDonkey hace que el burro y la mula funcionen como una raza de caballo má
 - El cepillo del menú TAB sale gris en burro y mula (en el caballo funciona); usa "Cepillar" montado.
 - La opción "Quitar silla" no aparece en el burro ni en la mula, ni siquiera como montura principal.
 - En "Mostrar información", el campo de pelaje del burro y la mula muestra el texto `~lp~` (no tienen texto de pelaje en el juego). Es solo estético.
+- SuperDonkMode no puede subir la salud ni la energía del burro (ver arriba).
 - Compatibilidad con Stable Expansion: no probada.
 
 ## Requisitos
@@ -79,6 +89,9 @@ El mod no modifica archivos del juego. Lo único que queda en tu partida es lo q
 | `HideVanillaPromptTypes` | `5,44,47,49,50,52` | Botones del juego que se ocultan en el burro. |
 | `HideVanillaPromptTypesMule` | `49,50` | Botones del juego que se ocultan en la mula (solo cepillar y alimentar). |
 | `CarePromptPriority` | `2` | Prioridad de los botones del mod frente a los del juego (0–3). |
+| `SuperDonkMode` | `0` | Mejora de estadísticas del burro y las mulas que montas (1 = activado). |
+| `SuperDonkHealth` / `SuperDonkStamina` | `6` / `4` | Rango de salud y energía (0–9; el establo muestra rango + 1). Por defecto: Turkmeno bayo oscuro. Solo mulas. `-1` = sin cambios. |
+| `SuperDonkSpeed` / `SuperDonkAcceleration` | `5` / `5` | Rango de velocidad y aceleración (0–9). Por defecto: Árabe blanco. `-1` = sin cambios. |
 
 ## Compilar desde el código fuente
 
@@ -101,6 +114,7 @@ Resumen; el detalle está en [docs/NOTAS-TECNICAS.md](docs/NOTAS-TECNICAS.md) ([
 - `src/native/ModelInfoPatch.cpp`: escribe en los datos del modelo del burro y de las mulas, en memoria, los valores del caballo (tipo de animal y otros campos). Los offsets se descubren comparando burro, mula y caballo.
 - `src/native/ScriptPatch.cpp`: quita de los scripts cargados (`player_horse`, `shop_horse_shop_sp`) las comprobaciones explícitas "¿es un burro / una mula?" y da a las dos mulas un item de catálogo para el establo. Respeta los datos de raza y catálogo que el juego usa para guardar y restaurar a los animales.
 - `src/native/CarePrompts.cpp`: los botones de cuidado. Cepillar y alimentar lanzan la misma secuencia de uso de objetos del juego.
+- `src/native/SuperDonk.cpp`: SuperDonkMode, la mejora opcional de estadísticas.
 - `src/main.cpp`: arranque, bucle principal y registro de la montura y del vínculo.
 
 ## Registro

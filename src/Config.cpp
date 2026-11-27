@@ -70,6 +70,11 @@ namespace StabledDonkey
         ReadString("HideVanillaPromptTypes", hideVanillaPromptTypes);
         ReadString("HideVanillaPromptTypesMule", hideVanillaPromptTypesMule);
         carePromptPriority = ReadInt("CarePromptPriority", carePromptPriority);
+        superDonkMode = ReadBool("SuperDonkMode", superDonkMode);
+        superDonkHealth = ReadInt("SuperDonkHealth", superDonkHealth);
+        superDonkStamina = ReadInt("SuperDonkStamina", superDonkStamina);
+        superDonkSpeed = ReadInt("SuperDonkSpeed", superDonkSpeed);
+        superDonkAcceleration = ReadInt("SuperDonkAcceleration", superDonkAcceleration);
     }
 
     void Config::LogValues() const
@@ -81,5 +86,7 @@ namespace StabledDonkey
             careInputPat.c_str(), careInputBrush.c_str(), careInputFeed.c_str(), careInputMountedBrush.c_str(),
             careMaxDistance, careMountedBrushMinDirt, hideVanillaPromptTypes.c_str(),
             hideVanillaPromptTypesMule.c_str(), carePromptPriority);
+        Log("Config: SuperDonkMode=%d SuperDonkHealth=%d SuperDonkStamina=%d SuperDonkSpeed=%d SuperDonkAcceleration=%d",
+            superDonkMode ? 1 : 0, superDonkHealth, superDonkStamina, superDonkSpeed, superDonkAcceleration);
     }
 }

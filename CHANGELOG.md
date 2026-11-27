@@ -2,6 +2,19 @@
 
 **English** | [Español](CHANGELOG.es.md)
 
+## v0.6.0 — 2026-11-26
+
+SuperDonkMode: an optional stat boost for the donkey and the mules.
+
+### Added
+
+- `SuperDonkMode` (off by default): raises the base attribute ranks of the donkey or mule the player rides with the game's attribute natives (`SET_ATTRIBUTE_BASE_RANK`). Defaults are the game's own default ranks: speed 5 and acceleration 5 of the White Arabian, health 6 and stamina 4 of the Dark Bay Turkoman (the stable shows rank + 1: 6 / 6 and 7 / 5). Every value is set in the ini (`SuperDonkHealth`, `SuperDonkStamina`, `SuperDonkSpeed`, `SuperDonkAcceleration`; `-1` leaves a stat unchanged). Saddle bonuses still add on top.
+- Tested: on mules all four stats apply (max health 60 → 180, max stamina 60 → 140). The TAB wheel and "Show Info" show the boosted stats; the stable and `Player → Horse` show the breed's original stats.
+
+### Known limitations
+
+- On the donkey only speed and acceleration apply. Its max health (251) and stamina are fixed by its model and ignore the ranks; tested in game, its stamina already lasts about like rank 4 (the Turkoman's) and its health is higher than any horse rank gives (rank 9 = 240).
+
 ## v0.5.0 — 2026-11-26
 
 The painted mule joins the stable, the prompts use the game's own texts and the documentation is now in English and Spanish.

@@ -93,6 +93,17 @@ Limitation: during the animation the engine drops the lock-on target and does no
 - When the player has no main horse left, `player_horse` uses a default horse (`func_970`: chestnut Tennessee Walker). That is not the mod.
 - "Remove Saddle" (H, `INPUT_SADDLE_TRANSFER`) is an engine prompt with no equivalent native or task. `player_horse` only receives `EVENT_SADDLE_TRANSFER` once it has happened. It does not appear even with the mule as the main horse, so it does not depend on the skeleton.
 
+## SuperDonkMode (v0.6.0, `src/native/SuperDonk.cpp`)
+
+- Horse stats are attribute ranks (`ePedAttribute`: 0 health, 1 stamina, 5 speed, 6 acceleration). The scripts never set the base ranks of those four: the engine takes them from the breed. Saddles add **bonus** ranks to speed and acceleration, and `player_horse` rewrites those bonus ranks of the player's horse from its tack on every update (`func_662`–`func_664`). That is why the mod sets the **base** rank (`SET_ATTRIBUTE_BASE_RANK`, `0x5DA12E025D47D4E5`) and the tack still adds on top.
+- The stable shows each stat as base rank + 1 out of 10 (`shop_horse_shop_sp`, `"HorseSpeedValue"`). The game's own default ranks, read in game with `GET_DEFAULT_ATTRIBUTE_RANK` (`0x958DD43D41F89A47`): White Arabian health 4, stamina 4, speed 5, acceleration 5; Dark Bay Turkoman 6, 4, 5, 4 (max rank 9). Plus 1 they match the published guides (5/5/6/6 and 7/5/6/5). Donkey and mules: 0 in all four.
+- The mod checks once per second the donkey or mule being ridden and the last one ridden, and sets the ranks again if they differ.
+- Tested in game (2026-11-26):
+  - Horses and mules: max health and max stamina = 60 + 20 × rank (regular horse rank 2: 100 / 100; boosted mule rank 6 / 4: 180 / 140).
+  - The TAB wheel and "Show Info" show the boosted stats; the stable and `Player → Horse` show the breed's defaults.
+  - The donkey takes the four ranks (speed and acceleration apply), but its max health (251) and max stamina (300) do not change. Galloping drains about 6.3 stamina points every 5 s on every animal. What tires the animal is the normalised stamina (`_GET_PED_STAMINA_NORMALIZED`), whose hidden range is about 60 on a rank 2 horse, about 100 on a rank 4 mule and about 104–107 on the donkey **with or without** the boost. So the donkey's stamina is fixed at about rank 4 and its health is above any horse rank (rank 9 = 240).
+  - There is no native to set max stamina. `_SET_STAMINA_DEPLETION_MULTIPLIER` could emulate more stamina on the donkey, but `player_horse` rewrites it on the player's horse from the tack; left out.
+
 ## Natives and globals used
 
 | Use | Hash |
@@ -108,4 +119,9 @@ Limitation: during the animation the engine drops the lock-on target and does no
 | `DOES_TEXT_LABEL_EXIST` | `0x73C258C68D6F55B6` |
 | `_GET_LABEL_TEXT_2` | `0x3429670F9B9EF2D3` |
 | `GET_CURRENT_LANGUAGE` | `0xDB917DA5C6835FCC` |
+| `SET_ATTRIBUTE_BASE_RANK` | `0x5DA12E025D47D4E5` |
+| `GET_MAX_ATTRIBUTE_RANK` | `0x704674A0535A471D` |
+| `GET_DEFAULT_ATTRIBUTE_RANK` | `0x958DD43D41F89A47` |
+| `GET_PED_MAX_HEALTH` | `0x4700A416E8324EF3` |
+| `_GET_PED_MAX_STAMINA` | `0xCB42AFE2B613EE55` |
 | `player_horse` item-use global | `Global_1900372` |

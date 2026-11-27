@@ -6,7 +6,7 @@
 
 StabledDonkey makes the donkey and the mule work like any other horse breed, using the game's own systems. It does not replace their models with horses or modify any game files: every change is applied in memory at startup.
 
-## What it does (v0.5.0)
+## What it does (v0.6.0)
 
 ### Donkey
 
@@ -27,6 +27,15 @@ StabledDonkey makes the donkey and the mule work like any other horse breed, usi
 - **On-foot care:** the mod's **Pat (G)**, **Brush (B)** and **Feed (R)**, because the mule's own prompts are sometimes greyed out. Pat is available from the start; Brush and Feed need some bond.
 - **Mounted care:** pat and feed as on a horse, and **Brush (R)** when it is dirty.
 
+### SuperDonkMode (optional)
+
+Off by default (`SuperDonkMode=0`). When on, the donkey or mule you ride gets better stats through the game's own attribute natives, like a stat boost mod. By default it gets the speed and acceleration of the White Arabian and the health and stamina of the Dark Bay Turkoman; every value can be changed in the `.ini`.
+
+- **Mules:** all four stats apply (health, stamina, speed and acceleration).
+- **Donkey:** speed and acceleration apply. Its health and stamina are fixed by its model and do not change, but they are already about a Turkoman's (stamina) or higher (health).
+- The TAB wheel and "Show Info" show the boosted stats. The stable and `Player → Horse` show the breed's original stats.
+- Saddle bonuses still add on top, as on any horse.
+
 ## Known limitations
 
 - The on-foot care prompts belong to the mod. After each on-foot action you have to release and lock on to the animal again (right click) to repeat.
@@ -34,6 +43,7 @@ StabledDonkey makes the donkey and the mule work like any other horse breed, usi
 - The TAB-wheel brush is greyed out on donkeys and mules (it works on horses); use the mounted Brush instead.
 - The "Remove Saddle" option does not appear on the donkey or the mule, not even as the main horse.
 - In "Show Info", the coat field of the donkey and the mule shows the text `~lp~` (the game has no coat text for them). It is cosmetic only.
+- SuperDonkMode cannot raise the donkey's health or stamina (see above).
 - Stable Expansion compatibility: not tested.
 
 ## Requirements
@@ -79,6 +89,9 @@ The mod does not modify game files. The only thing left in your save is what the
 | `HideVanillaPromptTypes` | `5,44,47,49,50,52` | Game prompts hidden on the donkey. |
 | `HideVanillaPromptTypesMule` | `49,50` | Game prompts hidden on the mule (only brush and feed). |
 | `CarePromptPriority` | `2` | Priority of the mod's prompts over the game's (0–3). |
+| `SuperDonkMode` | `0` | Stat boost for the donkey and mules you ride (1 = on). |
+| `SuperDonkHealth` / `SuperDonkStamina` | `6` / `4` | Health and stamina rank (0–9; the stable shows rank + 1). Default: Dark Bay Turkoman. Mules only. `-1` = unchanged. |
+| `SuperDonkSpeed` / `SuperDonkAcceleration` | `5` / `5` | Speed and acceleration rank (0–9). Default: White Arabian. `-1` = unchanged. |
 
 ## Building from source
 
@@ -101,6 +114,7 @@ Summary; the details are in [docs/TECHNICAL-NOTES.md](docs/TECHNICAL-NOTES.md) (
 - `src/native/ModelInfoPatch.cpp`: writes the horse values (animal type and other fields) into the in-memory model data of the donkey and the mules. The offsets are discovered by comparing donkey, mule and horse.
 - `src/native/ScriptPatch.cpp`: removes the explicit "is it a donkey / a mule?" checks from the loaded scripts (`player_horse`, `shop_horse_shop_sp`) and maps both mules to a catalog item for the stable. It keeps the breed and catalog data the game uses to save and restore the animals.
 - `src/native/CarePrompts.cpp`: the care prompts. Brush and feed start the game's own item-use sequence.
+- `src/native/SuperDonk.cpp`: SuperDonkMode, the optional stat boost.
 - `src/main.cpp`: startup, main loop and logging of the mount and the bond.
 
 ## Log

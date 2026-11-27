@@ -2,6 +2,19 @@
 
 [English](CHANGELOG.md) | **Español**
 
+## v0.6.0 — 2026-11-26
+
+SuperDonkMode: una mejora opcional de estadísticas para el burro y las mulas.
+
+### Añadido
+
+- `SuperDonkMode` (desactivado por defecto): sube los rangos base de atributos del burro o la mula que monta el jugador con las funciones de atributos del juego (`SET_ATTRIBUTE_BASE_RANK`). Los valores por defecto son los rangos de fábrica del propio juego: velocidad 5 y aceleración 5 del Árabe blanco, salud 6 y energía 4 del Turkmeno bayo oscuro (el establo muestra rango + 1: 6 / 6 y 7 / 5). Todos los valores se ajustan en el ini (`SuperDonkHealth`, `SuperDonkStamina`, `SuperDonkSpeed`, `SuperDonkAcceleration`; `-1` deja una estadística sin cambios). Las bonificaciones de la silla se siguen sumando encima.
+- Probado: en las mulas se aplican las cuatro estadísticas (salud máxima 60 → 180, energía máxima 60 → 140). El menú TAB y "Mostrar información" muestran las estadísticas mejoradas; el establo y `Personaje → Caballo` muestran las originales de la raza.
+
+### Limitaciones conocidas
+
+- En el burro solo se aplican velocidad y aceleración. Su salud máxima (251) y su energía vienen fijas en su modelo y no siguen los rangos; probado en el juego, su energía ya dura más o menos como un rango 4 (la del Turkmeno) y su salud es mayor que la de cualquier rango de caballo (rango 9 = 240).
+
 ## v0.5.0 — 2026-11-26
 
 La mula pintada entra en el establo, los botones usan los textos del propio juego y la documentación está ahora en inglés y en español.

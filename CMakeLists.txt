@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(StabledDonkey VERSION 0.5.0 LANGUAGES CXX)
+project(StabledDonkey VERSION 0.6.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -23,6 +23,7 @@ add_library(StabledDonkey SHARED
     src/native/Memory.cpp
     src/native/ModelInfoPatch.cpp
     src/native/ScriptPatch.cpp
+    src/native/SuperDonk.cpp
 )
 
 target_compile_definitions(StabledDonkey PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)

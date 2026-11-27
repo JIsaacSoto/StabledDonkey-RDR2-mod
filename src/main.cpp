@@ -7,12 +7,13 @@
 #include "native/CarePrompts.h"
 #include "native/ModelInfoPatch.h"
 #include "native/ScriptPatch.h"
+#include "native/SuperDonk.h"
 
 namespace StabledDonkey
 {
     namespace
     {
-        constexpr const char *VERSION = "0.5.0";
+        constexpr const char *VERSION = "0.6.0";
         constexpr DWORD TICK_MS = 100;
 
         HMODULE g_module = nullptr;
@@ -98,6 +99,7 @@ namespace StabledDonkey
                 ScriptPatch::Update();
                 g_mountTracker.Update();
                 CarePrompts::Update(g_mountTracker.mount);
+                SuperDonk::Update(g_mountTracker.mount);
                 WAIT(TICK_MS);
             }
         }
