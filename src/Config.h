@@ -49,6 +49,18 @@ namespace StabledDonkey
         // 2 high, 3 mission critical).
         int carePromptPriority = 2;
 
+        // SuperDonkMode: optional boost of the base attribute ranks of the
+        // donkey / mule the player rides (internal ranks, as the natives take
+        // them; the stable shows every stat as rank + 1 out of 10). -1 leaves
+        // that stat alone. Defaults: speed and acceleration of the White
+        // Arabian, health and stamina of the Dark Bay Turkoman. The donkey
+        // ignores health and stamina (fixed by its model).
+        bool superDonkMode = false;
+        int superDonkHealth = 6;
+        int superDonkStamina = 4;
+        int superDonkSpeed = 5;
+        int superDonkAcceleration = 5;
+
         void Load(HMODULE module);
         void LogValues() const;
     };

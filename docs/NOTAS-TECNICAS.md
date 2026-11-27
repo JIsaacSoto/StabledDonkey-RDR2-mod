@@ -93,6 +93,17 @@ Limitación: durante la animación el motor suelta el objetivo fijado y no lo re
 - Cuando el jugador se queda sin montura principal, `player_horse` usa un caballo por defecto (`func_970`: Tennessee Walker castaño). No es cosa del mod.
 - "Quitar silla" (H, `INPUT_SADDLE_TRANSFER`) es un botón del motor sin native ni tarea equivalente. `player_horse` solo recibe `EVENT_SADDLE_TRANSFER` cuando ya ocurrió. No aparece ni con la mula como montura principal, así que no depende del esqueleto.
 
+## SuperDonkMode (v0.6.0, `src/native/SuperDonk.cpp`)
+
+- Las estadísticas de un caballo son rangos de atributos (`ePedAttribute`: 0 salud, 1 energía, 5 velocidad, 6 aceleración). Los scripts nunca fijan el rango base de esas cuatro: el motor lo toma de la raza. Las sillas suman rangos de **bonificación** a velocidad y aceleración, y `player_horse` reescribe esos rangos de bonificación de la montura del jugador según su equipo en cada actualización (`func_662`–`func_664`). Por eso el mod fija el rango **base** (`SET_ATTRIBUTE_BASE_RANK`, `0x5DA12E025D47D4E5`) y el equipo se sigue sumando encima.
+- El establo muestra cada estadística como rango base + 1 sobre 10 (`shop_horse_shop_sp`, `"HorseSpeedValue"`). Rangos de fábrica del propio juego, leídos en el juego con `GET_DEFAULT_ATTRIBUTE_RANK` (`0x958DD43D41F89A47`): Árabe blanco salud 4, energía 4, velocidad 5, aceleración 5; Turkmeno bayo oscuro 6, 4, 5, 4 (rango máximo 9). Sumando 1 coinciden con las guías publicadas (5/5/6/6 y 7/5/6/5). Burro y mulas: 0 en las cuatro.
+- El mod revisa una vez por segundo el burro o la mula que se monta y el último montado, y vuelve a fijar los rangos si no coinciden.
+- Probado en el juego (2026-11-26):
+  - Caballos y mulas: salud máxima y energía máxima = 60 + 20 × rango (caballo normal de rango 2: 100 / 100; mula con aumento de rango 6 / 4: 180 / 140).
+  - El menú TAB y "Mostrar información" muestran las estadísticas mejoradas; el establo y `Personaje → Caballo` muestran las de fábrica de la raza.
+  - El burro acepta los cuatro rangos (velocidad y aceleración se aplican), pero su salud máxima (251) y su energía máxima (300) no cambian. Al galopar todos gastan unos 6,3 puntos de energía cada 5 s. Lo que cansa al animal es la energía normalizada (`_GET_PED_STAMINA_NORMALIZED`), cuyo rango oculto es de unos 60 en un caballo de rango 2, unos 100 en una mula de rango 4 y unos 104–107 en el burro **con o sin** el aumento. Es decir, la energía del burro está fija en más o menos un rango 4, y su salud supera la de cualquier rango de caballo (rango 9 = 240).
+  - No hay native para fijar la energía máxima. `_SET_STAMINA_DEPLETION_MULTIPLIER` podría emular más energía en el burro, pero `player_horse` la reescribe en la montura del jugador según el equipo; se dejó fuera.
+
 ## Natives y globales usados
 
 | Uso | Hash |
@@ -108,4 +119,9 @@ Limitación: durante la animación el motor suelta el objetivo fijado y no lo re
 | `DOES_TEXT_LABEL_EXIST` | `0x73C258C68D6F55B6` |
 | `_GET_LABEL_TEXT_2` | `0x3429670F9B9EF2D3` |
 | `GET_CURRENT_LANGUAGE` | `0xDB917DA5C6835FCC` |
+| `SET_ATTRIBUTE_BASE_RANK` | `0x5DA12E025D47D4E5` |
+| `GET_MAX_ATTRIBUTE_RANK` | `0x704674A0535A471D` |
+| `GET_DEFAULT_ATTRIBUTE_RANK` | `0x958DD43D41F89A47` |
+| `GET_PED_MAX_HEALTH` | `0x4700A416E8324EF3` |
+| `_GET_PED_MAX_STAMINA` | `0xCB42AFE2B613EE55` |
 | Global de uso de objetos de `player_horse` | `Global_1900372` |
