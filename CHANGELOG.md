@@ -1,5 +1,34 @@
 # Changelog
 
+**English** | [Español](CHANGELOG.es.md)
+
+## v0.5.0 — 2026-11-26
+
+The painted mule joins the stable, the prompts use the game's own texts and the documentation is now in English and Spanish.
+
+### Added
+
+- The painted mule can be stabled too, together with the regular mule (both use the `HORSE_DONKEY` item). The multiplayer-only case at the start of each model -> item function is rewritten as a two-case switch (mule, painted mule) that jumps to the existing donkey case; every other horse falls through to the original switch, so horses without an item (gang horses and others) are still refused as in vanilla. Tested: stable row, renaming and mane / tail changes, main horse, whistle, map and persistence on load, inside and outside the stable.
+- The care prompt texts come from the game's own text labels (`INTERACT_HORSE`, `BRUSH_HORSE`, `FEED_HORSE`), so they follow the game language. English fallback if a label is missing.
+
+### Changed
+
+- The mounted brush prompt shows the game's brush text (`BRUSH_HORSE`, "Cepillar" in Spanish) instead of the hardcoded "Cepillar burro" / "Cepillar mula".
+- Documentation in English and Spanish: `README.md` / `README.es.md`, `CHANGELOG.md` / `CHANGELOG.es.md`, `docs/TECHNICAL-NOTES.md` / `docs/NOTAS-TECNICAS.md`, bilingual `StabledDonkey.ini` comments and `README.txt` / `LEEME.txt` in the release package.
+
+### Removed
+
+- `StableMuleModel`: both mules are now stabled.
+
+### Fixed
+
+- Feed did not appear when the only food left was herbs. It now uses the same food list as the game: horse food first, then the 26 herbs vanilla falls back to (ginseng, sage, mint...).
+- One of the seven model -> item functions was not recognised (one case jumps over compiler padding), so it only knew the regular mule. Up to 2 odd cases are now tolerated when the donkey case is exact; all seven are rewritten.
+
+### Documented
+
+- Uninstall test: without the mod, a stable that holds a donkey or a mule shows an empty "Manage horses" menu (it works again once the mod is back). A mule kept as the main horse still spawns with its vanilla interactions, but gives no bonding points, shows a plain animal card and its bond drops to level 1. Take donkeys and mules out of the stable (or sell them) before uninstalling.
+
 ## v0.4.0 — 2026-11-26
 
 The regular mule can now be stabled, set as the main horse and kept across save loads.

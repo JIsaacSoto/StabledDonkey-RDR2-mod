@@ -15,6 +15,7 @@
 #include <cstdio>
 #include <cstring>
 #include <functional>
+#include <string>
 #include <vector>
 
 // Script patch. The decompiled 1491.50 scripts (Halen84/RDR3-Decompiled-Scripts)
@@ -394,17 +395,224 @@ namespace StabledDonkey::ScriptPatch
             Log("Script patch: %s at %p: %s", what, reinterpret_cast<void *>(at), bytes);
         }
 
-        // "PUSH_CONST_U32 MANGY_MODEL; ==; PUSH_CONST_U32 MANGY_ITEM; LEAVE" ->
-        // "PUSH_CONST_U32 <mule>; ==; PUSH_CONST_U32 HORSE_DONKEY; LEAVE". The
-        // other functions with the same mangy prefix (breed name, class)
-        // return something else and are left alone.
-        unsigned PatchStableMuleMapping(const std::vector<Hit> &hits)
+        // Both mules (v0.5). The 18-byte prefix of the model -> item function
+        //   66 00 | 37 <MANGY_MODEL> | 15 08 00 | 37 <MANGY_ITEM> | 50 01 01
+        //   LOCAL_U8_LOAD 0 | PUSH model | if != jump +8 | PUSH item | LEAVE
+        // becomes a two-case switch into the function's own
+        // "case A_C_DONKEY_01: return HORSE_DONKEY;" body:
+        //   66 00 | 3C 02 00 | <MULE> <jump> | <PAINTED_MULE> <jump> | NOP
+        // Every other model falls through to the original switch exactly as
+        // before (only the multiplayer-only mangy horse loses its case, as in
+        // v0.4). Unlike sending the switch default to HORSE_DONKEY, this keeps
+        // the gang horses (Dutch's, Bill's...) and the other models without an
+        // item out of the stable, as in vanilla.
+        // PC opcode table: maybegreat48/GTA-V-Script-Decompiler Instruction.cs
+        // (ShuffledOpcodes, from EROOTIIK's RDR 1355 set); it matches every
+        // opcode above that was read from live memory.
+        constexpr uint8_t OP_NOP = 0x13;
+        constexpr size_t PREFIX_BYTES = 18;
+        constexpr size_t PREFIX_LOAD_BYTES = 2; // "66 00" before the model constant
+        constexpr uint16_t MIN_ITEM_CASES = 16;
+        constexpr uint16_t MAX_ITEM_CASES = 512;
+
+        // How a SWITCH case offset is counted: from the end of the whole
+        // table or from the end of its own entry. Read from the big switch
+        // itself (only one of them lands every case on a "return item" body).
+        enum class SwitchBase
         {
-            const uint32_t mule = g_config.stableMuleModel == "mule" ? MULE : PAINTED_MULE;
-            unsigned sites = 0;
+            Unknown,
+            TableEnd,
+            EntryEnd
+        };
+        SwitchBase g_switchBase = SwitchBase::Unknown;
+
+        int16_t LoadS16(const uint8_t *p)
+        {
+            int16_t value = 0;
+            std::memcpy(&value, p, sizeof(value));
+            return value;
+        }
+
+        const uint8_t *CaseTarget(const uint8_t *table, uint16_t count, uint16_t index, SwitchBase base)
+        {
+            const uint8_t *entry = table + 6 * index;
+            const uint8_t *from = base == SwitchBase::TableEnd ? table + 6 * count : entry + 6;
+            return from + LoadS16(entry + 4);
+        }
+
+        // "PUSH_CONST_U32 <item>; LEAVE 1 1"
+        bool IsReturnConst(const uint8_t *body)
+        {
+            return Memory::IsReadable(reinterpret_cast<uintptr_t>(body), 8) && body[0] == OP_PUSH_CONST_U32 &&
+                   body[5] == OP_LEAVE && body[6] == 1 && body[7] == 1;
+        }
+
+        // The model -> item switch that follows the prefix: "66 00 3C <count>"
+        // and a table whose every case returns a constant. Returns the donkey
+        // case body ("PUSH HORSE_DONKEY; LEAVE"), or null if anything differs.
+        constexpr uint16_t MAX_ODD_CASES = 2;
+
+        struct OddCases
+        {
+            uint16_t count = 0;
+            const uint8_t *firstTarget = nullptr;
+            std::string detail;
+        };
+
+        // why (optional) receives the reason when it returns null; oddInfo
+        // (optional) the cases that did not read as "return const".
+        const uint8_t *FindDonkeyItemBody(const uint8_t *sw, SwitchBase &baseOut, std::string *why = nullptr,
+                                          OddCases *oddInfo = nullptr)
+        {
+            auto fail = [why](const std::string &reason) -> const uint8_t * {
+                if (why)
+                    *why = reason;
+                return nullptr;
+            };
+            if (!Memory::IsReadable(reinterpret_cast<uintptr_t>(sw), 5) || sw[0] != OP_LOCAL_U8_LOAD || sw[1] != 0 ||
+                sw[2] != OP_SWITCH)
+                return fail("no switch after the prefix");
+            const uint16_t count = static_cast<uint16_t>(sw[3] | (sw[4] << 8));
+            const uint8_t *table = sw + 5;
+            if (count < MIN_ITEM_CASES || count > MAX_ITEM_CASES)
+                return fail("case count " + std::to_string(count));
+            if (!Memory::IsReadable(reinterpret_cast<uintptr_t>(table), 6u * count))
+                return fail("table not readable (count " + std::to_string(count) + ")");
+
+            // A jump base fits when (nearly) every case lands on "return const".
+            // A couple of odd cases are tolerated (seen once: one copy where
+            // case 80 of 81 has another shape); only the donkey case is used
+            // and it is checked exactly below.
+            SwitchBase base = SwitchBase::Unknown;
+            std::string misses;
+            uint16_t baseOdd = 0;
+            const uint8_t *firstOdd = nullptr;
+            for (SwitchBase candidate : {SwitchBase::TableEnd, SwitchBase::EntryEnd})
+            {
+                uint16_t odd = 0;
+                int first = -1;
+                for (uint16_t i = 0; i < count && odd <= MAX_ODD_CASES; ++i)
+                    if (!IsReturnConst(CaseTarget(table, count, i, candidate)))
+                    {
+                        if (first < 0)
+                            first = i;
+                        ++odd;
+                    }
+                if (first >= 0)
+                {
+                    char buf[112];
+                    std::snprintf(buf, sizeof(buf), "%s%s: %s%u odd, first case %d of %u (value %08X jump %d)",
+                                  misses.empty() ? "" : ", ",
+                                  candidate == SwitchBase::TableEnd ? "table end" : "entry end",
+                                  odd > MAX_ODD_CASES ? ">" : "", odd > MAX_ODD_CASES ? MAX_ODD_CASES : odd, first, count,
+                                  LoadU32(table + 6 * first), LoadS16(table + 6 * first + 4));
+                    misses += buf;
+                }
+                if (odd > MAX_ODD_CASES)
+                    continue;
+                if (base != SwitchBase::Unknown)
+                    return fail("both jump bases fit");
+                base = candidate;
+                baseOdd = odd;
+                firstOdd = first >= 0 ? CaseTarget(table, count, static_cast<uint16_t>(first), candidate) : nullptr;
+            }
+            if (base == SwitchBase::Unknown)
+                return fail("cases do not return a constant: " + misses);
+            if (oddInfo)
+            {
+                oddInfo->count = baseOdd;
+                oddInfo->firstTarget = firstOdd;
+                oddInfo->detail = misses;
+            }
+
+            for (uint16_t i = 0; i < count; ++i)
+            {
+                if (LoadU32(table + 6 * i) != DONKEY)
+                    continue;
+                const uint8_t *body = CaseTarget(table, count, i, base);
+                if (!IsReturnConst(body) || LoadU32(body + 1) != DONKEY_ITEM)
+                    return fail("donkey case does not return HORSE_DONKEY");
+                baseOut = base;
+                return body;
+            }
+            return fail("no donkey case");
+        }
+
+        // Case values must stay sorted (signed): the mule hash is negative.
+        constexpr uint32_t SMALL_CASES[2] = {MULE, PAINTED_MULE};
+        static_assert(static_cast<int32_t>(MULE) < static_cast<int32_t>(PAINTED_MULE), "case order");
+
+        // Bytes written over the prefix after its "66 00".
+        bool BuildMuleSwitch(const uint8_t *prefix, const uint8_t *donkeyBody, SwitchBase base,
+                             uint8_t (&out)[PREFIX_BYTES - PREFIX_LOAD_BYTES])
+        {
+            const uint8_t *table = prefix + PREFIX_LOAD_BYTES + 3;
+            out[0] = OP_SWITCH;
+            out[1] = 2;
+            out[2] = 0;
+            for (uint16_t i = 0; i < 2; ++i)
+            {
+                const uint8_t *from = base == SwitchBase::TableEnd ? table + 12 : table + 6 * (i + 1);
+                const ptrdiff_t offset = donkeyBody - from;
+                if (offset < INT16_MIN || offset > INT16_MAX)
+                    return false;
+                const int16_t jump = static_cast<int16_t>(offset);
+                std::memcpy(out + 3 + 6 * i, &SMALL_CASES[i], 4);
+                std::memcpy(out + 3 + 6 * i + 4, &jump, 2);
+            }
+            out[15] = OP_NOP;
+            return true;
+        }
+
+        // Our switch, already in place (mod restarted without a script reload).
+        bool IsMuleSwitch(const uint8_t *op)
+        {
+            if (!Memory::IsReadable(reinterpret_cast<uintptr_t>(op) - PREFIX_LOAD_BYTES, PREFIX_BYTES + 5) ||
+                op[-2] != OP_LOCAL_U8_LOAD || op[-1] != 0 || op[0] != OP_SWITCH || op[1] != 2 || op[2] != 0 ||
+                LoadU32(op + 3) != MULE || LoadU32(op + 9) != PAINTED_MULE || op[15] != OP_NOP)
+                return false;
+            SwitchBase base = SwitchBase::Unknown;
+            const uint8_t *donkeyBody = FindDonkeyItemBody(op + 16, base);
+            return donkeyBody && CaseTarget(op + 3, 2, 0, base) == donkeyBody &&
+                   CaseTarget(op + 3, 2, 1, base) == donkeyBody;
+        }
+
+        void TrackMuleSwitch(const uint8_t *op)
+        {
+            g_patched.push_back({reinterpret_cast<uintptr_t>(op + 3), MULE});
+            g_patched.push_back({reinterpret_cast<uintptr_t>(op + 9), PAINTED_MULE});
+        }
+
+        struct MuleMappingResult
+        {
+            unsigned bothMules = 0;
+            unsigned muleOnly = 0;
+            unsigned alreadyApplied = 0;
+        };
+
+        // Rewrites the exact mangy prefix of the model -> item functions. The
+        // other functions with the same prefix (breed name, class) return
+        // something else and are left alone. Where the following switch does
+        // not read as expected, falls back to the v0.4 rewrite (regular mule
+        // only): "PUSH <mule>; ==; PUSH HORSE_DONKEY; LEAVE".
+        MuleMappingResult PatchStableMuleMapping(const std::vector<Hit> &hits)
+        {
+            MuleMappingResult result;
             for (const Hit &hit : hits)
             {
-                if (hit.value != MANGY_MODEL || !Memory::IsReadable(hit.address - 1, 1 + 4 + 3 + 5 + 3))
+                if (hit.value != MULE || IsPatchedSite(hit.address))
+                    continue;
+                const auto *op = reinterpret_cast<const uint8_t *>(hit.address) - 3;
+                if (IsMuleSwitch(op))
+                {
+                    TrackMuleSwitch(op);
+                    ++result.alreadyApplied;
+                }
+            }
+
+            for (const Hit &hit : hits)
+            {
+                if (hit.value != MANGY_MODEL || !Memory::IsReadable(hit.address - 3, PREFIX_BYTES + 5))
                     continue;
                 const auto *p = reinterpret_cast<const uint8_t *>(hit.address);
                 const bool exact = p[-1] == OP_PUSH_CONST_U32 && p[4] == OP_FUSED_EQ_JUMP &&
@@ -427,16 +635,58 @@ namespace StabledDonkey::ScriptPatch
                     // Same prefix returning something else (breed name, class).
                     continue;
                 }
-                const uintptr_t result = hit.address + 8;
-                if (!Memory::WriteBytes(result, &DONKEY_ITEM, sizeof(DONKEY_ITEM)))
+
+                const uint8_t *prefix = p - 3;
+                const bool loadsParam = prefix[0] == OP_LOCAL_U8_LOAD && prefix[1] == 0 && LoadS16(p + 5) == 8;
+                SwitchBase base = SwitchBase::Unknown;
+                std::string why = "prefix does not load the model parameter";
+                OddCases odd;
+                const uint8_t *donkeyBody =
+                    loadsParam ? FindDonkeyItemBody(prefix + PREFIX_BYTES, base, &why, &odd) : nullptr;
+                if (donkeyBody && odd.count)
+                {
+                    Log("Script patch: model -> item switch with %u odd case(s), donkey case exact (%s)", odd.count,
+                        odd.detail.c_str());
+                    if (odd.firstTarget)
+                        LogBytes("odd case target", reinterpret_cast<uintptr_t>(odd.firstTarget));
+                }
+                uint8_t bytes[PREFIX_BYTES - PREFIX_LOAD_BYTES]{};
+                if (donkeyBody && !BuildMuleSwitch(prefix, donkeyBody, base, bytes))
+                {
+                    why = "donkey case too far for a 16-bit jump";
+                    donkeyBody = nullptr;
+                }
+                if (donkeyBody)
+                {
+                    if (g_switchBase != base)
+                    {
+                        g_switchBase = base;
+                        Log("Script patch: switch jumps count from the %s",
+                            base == SwitchBase::TableEnd ? "table end" : "entry end");
+                    }
+                    const uintptr_t at = reinterpret_cast<uintptr_t>(prefix + PREFIX_LOAD_BYTES);
+                    if (Memory::WriteBytes(at, bytes, sizeof(bytes)))
+                    {
+                        TrackMuleSwitch(prefix + PREFIX_LOAD_BYTES);
+                        LogBytes("mule switch written", at);
+                        ++result.bothMules;
+                    }
                     continue;
-                if (!Memory::WriteBytes(hit.address, &mule, sizeof(mule)))
+                }
+
+                Log("Script patch: model -> item switch not recognised (%s), regular mule only", why.c_str());
+                LogBytes("switch bytes", reinterpret_cast<uintptr_t>(prefix + PREFIX_BYTES));
+                LogBytes("model -> item site", hit.address);
+                const uintptr_t item = hit.address + 8;
+                if (!Memory::WriteBytes(item, &DONKEY_ITEM, sizeof(DONKEY_ITEM)))
                     continue;
-                g_patched.push_back({hit.address, mule});
-                g_patched.push_back({result, DONKEY_ITEM});
-                ++sites;
+                if (!Memory::WriteBytes(hit.address, &MULE, sizeof(MULE)))
+                    continue;
+                g_patched.push_back({hit.address, MULE});
+                g_patched.push_back({item, DONKEY_ITEM});
+                ++result.muleOnly;
             }
-            return sites;
+            return result;
         }
 
         void ApplyResults()
@@ -470,6 +720,11 @@ namespace StabledDonkey::ScriptPatch
                 return before || after;
             };
 
+            // First: the main loop below must see our mule switch (a small
+            // "mule / painted mule" switch) as patched and leave it alone.
+            const MuleMappingResult stableMule =
+                job.includeStableMule ? PatchStableMuleMapping(hits) : MuleMappingResult{};
+
             unsigned patchedSwitch = 0, patchedCompare = 0, patchedMule = 0, muleKeptInStable = 0;
             for (const Hit &hit : hits)
             {
@@ -502,13 +757,12 @@ namespace StabledDonkey::ScriptPatch
                 }
             }
 
-            const unsigned stableMuleSites = job.includeStableMule ? PatchStableMuleMapping(hits) : 0;
-
             bool foundPlayerHorse = false;
             for (size_t i = 0; i < job.markerCount; ++i)
                 foundPlayerHorse = foundPlayerHorse || job.markers[i].marker == MARKER_PLAYER_HORSE;
             if (job.includeStableMule)
-                Log("Script patch: stable mule mapping sites=%u", stableMuleSites);
+                Log("Script patch: stable mule mapping both_mules=%u mule_only=%u already=%u", stableMule.bothMules,
+                    stableMule.muleOnly, stableMule.alreadyApplied);
 
             Log("Script patch: scan (%s) %llu MB in %llu ms, scripts_found=%zu, patched switch=%u compare=%u (mule=%u, mule kept in stable=%u)%s%s",
                 job.reason, job.bytesScanned / (1024ull * 1024ull), static_cast<unsigned long long>(job.elapsedMs),

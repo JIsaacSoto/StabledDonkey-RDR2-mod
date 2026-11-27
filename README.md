@@ -1,109 +1,121 @@
 # StabledDonkey
 
-**Burros y mulas como caballos en Red Dead Redemption 2 (Story Mode): vínculo, cuidados, estadísticas, establo y persistencia.**
+**English** | [Español](README.es.md)
 
-StabledDonkey hace que el burro y la mula funcionen como una raza de caballo más, usando los propios sistemas del juego. No reemplaza sus modelos por caballos ni modifica archivos del juego: todos los cambios se aplican en memoria al arrancar.
+**Donkeys and mules as horses in Red Dead Redemption 2 (Story Mode): bonding, care, stats, stable and persistence.**
 
-## Qué hace (v0.4.0)
+StabledDonkey makes the donkey and the mule work like any other horse breed, using the game's own systems. It does not replace their models with horses or modify any game files: every change is applied in memory at startup.
 
-### Burro
+## What it does (v0.5.0)
 
-- **Vínculo natural:** montar, alimentar, cepillar y acariciar dan XP de vínculo, con el toast y las subidas de nivel del juego.
-- **Ficha y estadísticas:** "Mostrar información" y `Personaje → Caballo` muestran la ficha del burro con sus datos.
-- **Establo:** puedes guardar el burro, elegirlo como montura principal y recuperarlo. Vuelve el burro real, con su nombre y su aspecto, también después de cerrar el juego.
-- **Cuidados a pie:** al fijar el burro con clic derecho aparecen **Acariciar (G)**, **Cepillar (B)** y **Alimentar (R)**, las mismas teclas que con un caballo. Como en el juego original, acariciar está disponible desde el principio (es la forma de empezar el vínculo) y cepillar y alimentar piden vínculo. Cepillar lo limpia y alimentar gasta la comida y aplica sus efectos, igual que en el juego.
-- **Cuidados montado:** acariciar (G) y alimentar funcionan como en un caballo. Para cepillar aparece **"Cepillar burro" (R)** cuando el burro está sucio, quieto y no estás en una misión.
-- Responde al silbido, aparece en el mapa como tu caballo y tiene las opciones de dirigir, seguir, quedarse y huir.
+### Donkey
 
-### Mula y mula pintada
+- **Natural bonding:** riding, feeding, brushing and patting give bonding XP, with the game's own toast and level-ups.
+- **Info card and stats:** "Show Info" and `Player → Horse` show the donkey's card with its data.
+- **Stable:** you can store the donkey, set it as your main horse and take it out again. The real donkey comes back, with its name and appearance, also after restarting the game.
+- **On-foot care:** lock on to the donkey (right click) to get **Pat (G)**, **Brush (B)** and **Feed (R)**, the same keys as a horse. As in the base game, Pat is available from the start (it is how the bond begins), while Brush and Feed need some bond. Brushing cleans it, and feeding uses up the food and applies its effects, just like in the game.
+- **Mounted care:** pat (G) and feed work as on a horse. To brush, a **Brush (R)** prompt appears when the donkey is dirty, standing still and you are not in a mission.
+- Feeding uses the same food as the game: horse food first and, if you have none left, the herbs the game also accepts (ginseng, sage, mint…).
+- The prompt texts are the game's own, so they show in your game language.
+- It answers the whistle, shows on the map as your horse and has the lead, follow, stay and flee options.
 
-- **Vínculo natural**, que el juego original les bloqueaba: montar, alimentar, cepillar y acariciar dan XP y suben de nivel.
-- **Ficha y estadísticas** en "Mostrar información" y `Personaje → Caballo`. Aparece en el mapa como tu caballo.
-- **Establo (mula normal):** se guarda, se puede elegir como montura principal, responde al silbido y se conserva al cargar la partida, tanto fuera como dentro del establo. En el establo su título dice "Burro" (usa el item del burro), pero su raza dice "Mula".
-- **Cuidados a pie:** **Acariciar (G)**, **Cepillar (B)** y **Alimentar (R)** del mod, porque los originales de la mula a veces salen grises. Acariciar está disponible desde el principio; cepillar y alimentar piden vínculo.
-- **Cuidados montado:** acariciar y alimentar como un caballo, y **"Cepillar mula" (R)** cuando está sucia.
+### Mule and painted mule
 
-## Limitaciones conocidas
+- **Natural bonding**, which the base game blocked for them: riding, feeding, brushing and patting give XP and raise the level.
+- **Info card and stats** in "Show Info" and `Player → Horse`. It shows on the map as your horse.
+- **Stable:** the mule and the painted mule can be stored, set as the main horse, answer the whistle and are kept on save load, both outside and inside the stable. In the stable their title is the donkey's (they use the donkey's item), but their breed is still shown as mule or painted mule.
+- **On-foot care:** the mod's **Pat (G)**, **Brush (B)** and **Feed (R)**, because the mule's own prompts are sometimes greyed out. Pat is available from the start; Brush and Feed need some bond.
+- **Mounted care:** pat and feed as on a horse, and **Brush (R)** when it is dirty.
 
-- Los botones de cuidado a pie son del mod. Después de cada acción a pie hay que soltar y volver a fijar al animal (clic derecho) para repetir.
-- **No guardes la mula pintada en el establo** (solo aparece en una misión). El juego no tiene un item de catálogo para las mulas; el mod da a la mula normal el del burro, pero solo cabe un modelo. La pintada sigue con el fallo del juego original: ficha sin título, menú vacío y un hueco que no se puede seleccionar. Si te pasa, carga una partida anterior. Puedes elegir cuál de las dos se guarda con `StableMuleModel`.
-- El cepillo del menú TAB sale gris en burro y mula (en el caballo funciona); usa "Cepillar burro" / "Cepillar mula" montado.
-- La opción "Quitar silla" no aparece en el burro ni en la mula, ni siquiera como montura principal.
-- En "Mostrar información", el campo de pelaje del burro y la mula muestra el texto `~lp~` (no tienen texto de pelaje en el juego). Es solo estético.
-- Compatibilidad con Stable Expansion: no probada.
+## Known limitations
 
-## Requisitos
+- The on-foot care prompts belong to the mod. After each on-foot action you have to release and lock on to the animal again (right click) to repeat.
+- In the stable, the title of both mules is the donkey's: the game has no catalog item for mules, so the mod gives them the donkey's. Their breed is still shown as mule.
+- The TAB-wheel brush is greyed out on donkeys and mules (it works on horses); use the mounted Brush instead.
+- The "Remove Saddle" option does not appear on the donkey or the mule, not even as the main horse.
+- In "Show Info", the coat field of the donkey and the mule shows the text `~lp~` (the game has no coat text for them). It is cosmetic only.
+- Stable Expansion compatibility: not tested.
 
-- Red Dead Redemption 2 **Story Mode** en PC, versión probada **1.0.1491.50** (Steam).
-- [ScriptHookRDR2](http://www.dev-c.com/rdr2/scripthookrdr2/) (incluye el ASI loader).
-- **No usar en Red Dead Online.**
+## Requirements
 
-El mod localiza en memoria lo que necesita mediante firmas y comparaciones, sin offsets fijos. En otra versión del juego, cualquier parte que no encuentre con seguridad se desactiva sola y lo indica en el log. Aun así, solo está probado en 1.0.1491.50.
+- Red Dead Redemption 2 **Story Mode** on PC, tested version **1.0.1491.50** (Steam).
+- [ScriptHookRDR2](http://www.dev-c.com/rdr2/scripthookrdr2/) (includes the ASI loader).
+- **Do not use in Red Dead Online.**
 
-## Instalación
+The mod finds what it needs in memory through signatures and comparisons, with no fixed offsets. On another game version, any part it cannot find safely turns itself off and says so in the log. Even so, it is only tested on 1.0.1491.50.
 
-1. Instala ScriptHookRDR2.
-2. Copia `StabledDonkey.asi` (y, si quieres cambiar opciones, `StabledDonkey.ini`) en la carpeta del juego, junto a `RDR2.exe`.
-3. Inicia Story Mode. Tras cargar la partida, el mod tarda unos 20 segundos en preparar los scripts. Si cargas otra partida, vuelve a hacerlo.
+## Installation
 
-Si actualizas desde una versión anterior y tienes un `StabledDonkey.ini` propio, usa el `.ini` nuevo (o añade `PatchMules=1`, `StableMules=1` y `CareMuleOnFoot=1`).
+1. Install ScriptHookRDR2.
+2. Copy `StabledDonkey.asi` (and, if you want to change options, `StabledDonkey.ini`) into the game folder, next to `RDR2.exe`.
+3. Start Story Mode. After the save loads, the mod takes about 20 seconds to prepare the scripts. It does this again whenever you load another save.
 
-Para desinstalar, borra esos archivos. El mod no modifica archivos del juego ni tu partida más allá de lo que el propio juego guarda (por ejemplo, el burro en el establo). Todavía no se ha probado qué hace el juego con un burro guardado en el establo si se quita el mod: haz una copia de tu partida antes.
+If you are updating and use your own `StabledDonkey.ini`, take the new `.ini`. A `StableMuleModel` line from v0.4.0 is ignored and can be removed.
 
-## Configuración
+### Uninstalling
 
-`StabledDonkey.ini` es opcional; sin él se usan los valores por defecto.
+**Before removing the mod, take every donkey and mule out of the stable** (or sell them). Then delete `StabledDonkey.asi` and `StabledDonkey.ini`.
 
-| Opción | Por defecto | Qué hace |
+The mod does not modify game files. The only thing left in your save is what the game itself stores: the stable animals and the main horse. Tested without the mod (2026-11-26):
+
+- **With a donkey or a mule inside the stable, the "Manage Horses" menu is empty** (it only lets you go back). Without the mod the game cannot show them. Once the mod is installed again, the stable works again.
+- A mule kept as the main horse still spawns and accepts the original interactions, but it no longer gives bonding points, its card is that of a plain animal and its bond goes back to level 1.
+
+## Configuration
+
+`StabledDonkey.ini` is optional; without it the default values are used. Its comments are in English and Spanish.
+
+| Option | Default | What it does |
 |---|---|---|
-| `PatchDonkey` | `1` | Trata al burro como caballo (datos del modelo y scripts). |
-| `PatchMules` | `1` | Lo mismo para la mula y la mula pintada. |
-| `StableMules` | `1` | Establo y persistencia para un modelo de mula. |
-| `StableMuleModel` | `mule` | Qué mula se puede guardar: `mule` (normal) o `painted` (pintada). |
-| `CarePrompts` | `1` | Botones de cuidado del mod (a pie; cepillado montado). |
-| `CareMuleOnFoot` | `1` | Botones a pie del mod también para la mula (0 = los originales). |
-| `CareInputPat` / `CareInputBrush` / `CareInputFeed` | G / B / R | Controles de los botones a pie. |
-| `CareInputMountedBrush` | `INPUT_CONTEXT_X` (R) | Control de "Cepillar burro" / "Cepillar mula" montado. |
-| `CareMountedBrushMinDirt` | `25` | Suciedad mínima (0–100) para mostrar el cepillado montado. |
-| `CareMaxDistance` | `2.2` | Distancia máxima (m) para los botones a pie. |
-| `HideVanillaPromptTypes` | `5,44,47,49,50,52` | Botones del juego que se ocultan en el burro. |
-| `HideVanillaPromptTypesMule` | `49,50` | Botones del juego que se ocultan en la mula (solo cepillar y alimentar). |
-| `CarePromptPriority` | `2` | Prioridad de los botones del mod frente a los del juego (0–3). |
+| `PatchDonkey` | `1` | Treats the donkey as a horse (model data and scripts). |
+| `PatchMules` | `1` | The same for the mule and the painted mule. |
+| `StableMules` | `1` | Stable and persistence for the mule and the painted mule. |
+| `CarePrompts` | `1` | The mod's care prompts (on foot; mounted brush). |
+| `CareMuleOnFoot` | `1` | The mod's on-foot prompts for mules too (0 = the original ones). |
+| `CareInputPat` / `CareInputBrush` / `CareInputFeed` | G / B / R | Controls for the on-foot prompts. |
+| `CareInputMountedBrush` | `INPUT_CONTEXT_X` (R) | Control for the mounted Brush. |
+| `CareMountedBrushMinDirt` | `25` | Minimum dirt (0–100) to show the mounted Brush. |
+| `CareMaxDistance` | `2.2` | Maximum distance (m) for the on-foot prompts. |
+| `HideVanillaPromptTypes` | `5,44,47,49,50,52` | Game prompts hidden on the donkey. |
+| `HideVanillaPromptTypesMule` | `49,50` | Game prompts hidden on the mule (only brush and feed). |
+| `CarePromptPriority` | `2` | Priority of the mod's prompts over the game's (0–3). |
 
-## Compilar desde el código fuente
+## Building from source
 
-Requisitos: Visual Studio 2022 o posterior (o Build Tools) con C++ y CMake, y el SDK de ScriptHookRDR2.
+Requirements: Visual Studio 2022 or later (or Build Tools) with C++ and CMake, and the ScriptHookRDR2 SDK.
 
-1. Descarga el SDK desde la página oficial y extráelo en `sdk/ScriptHookRDR2` (esa carpeta no se sube a Git; el SDK no se puede redistribuir).
-2. Ejecuta `build.cmd`, o bien:
+1. Download the SDK from the official page and extract it into `sdk/ScriptHookRDR2` (that folder is not committed; the SDK cannot be redistributed).
+2. Run `build.cmd`, or:
 
 ```powershell
-cmake -S . -B build -A x64 -DSCRIPTHOOK_RDR2_SDK="C:/ruta/al/ScriptHookRDR2"
+cmake -S . -B build -A x64 -DSCRIPTHOOK_RDR2_SDK="C:/path/to/ScriptHookRDR2"
 cmake --build build --config Release
 ```
 
-El resultado es `build/Release/StabledDonkey.asi`.
+The output is `build/Release/StabledDonkey.asi`.
 
-## Cómo funciona
+## How it works
 
-Resumen; el detalle está en [docs/NOTAS-TECNICAS.md](docs/NOTAS-TECNICAS.md).
+Summary; the details are in [docs/TECHNICAL-NOTES.md](docs/TECHNICAL-NOTES.md) ([español](docs/NOTAS-TECNICAS.md)).
 
-- `src/native/ModelInfoPatch.cpp`: escribe en los datos del modelo del burro y de las mulas, en memoria, los valores del caballo (tipo de animal y otros campos). Los offsets se descubren comparando burro, mula y caballo.
-- `src/native/ScriptPatch.cpp`: quita de los scripts cargados (`player_horse`, `shop_horse_shop_sp`) las comprobaciones explícitas "¿es un burro / una mula?" y da a la mula un item de catálogo para el establo. Respeta los datos de raza y catálogo que el juego usa para guardar y restaurar a los animales.
-- `src/native/CarePrompts.cpp`: los botones de cuidado. Cepillar y alimentar lanzan la misma secuencia de uso de objetos del juego.
-- `src/main.cpp`: arranque, bucle principal y registro de la montura y del vínculo.
+- `src/native/ModelInfoPatch.cpp`: writes the horse values (animal type and other fields) into the in-memory model data of the donkey and the mules. The offsets are discovered by comparing donkey, mule and horse.
+- `src/native/ScriptPatch.cpp`: removes the explicit "is it a donkey / a mule?" checks from the loaded scripts (`player_horse`, `shop_horse_shop_sp`) and maps both mules to a catalog item for the stable. It keeps the breed and catalog data the game uses to save and restore the animals.
+- `src/native/CarePrompts.cpp`: the care prompts. Brush and feed start the game's own item-use sequence.
+- `src/main.cpp`: startup, main loop and logging of the mount and the bond.
 
-## Registro
+## Log
 
-El mod escribe `StabledDonkey.log` en la carpeta del juego. Se reinicia en cada arranque. Si informas de un problema, adjúntalo e indica qué hiciste y con qué animal.
+The mod writes `StabledDonkey.log` in the game folder. It is reset on every start. If you report a problem, attach it and say what you did and with which animal.
 
-## Créditos
+## Credits
 
-- Scripts decompilados: [Halen84/RDR3-Decompiled-Scripts](https://github.com/Halen84/RDR3-Decompiled-Scripts).
-- Base de datos de natives: [alloc8or/rdr3-nativedb-data](https://github.com/alloc8or/rdr3-nativedb-data).
-- Controles y tipos de prompt: [femga/rdr3_discoveries](https://github.com/femga/rdr3_discoveries) y [Halen84/RDR3-Native-Flags-And-Enums](https://github.com/Halen84/RDR3-Native-Flags-And-Enums).
-- Firma del lookup de modelos: proyecto RDR2Playground.
+- Decompiled scripts: [Halen84/RDR3-Decompiled-Scripts](https://github.com/Halen84/RDR3-Decompiled-Scripts).
+- Native database: [alloc8or/rdr3-nativedb-data](https://github.com/alloc8or/rdr3-nativedb-data).
+- Controls and prompt types: [femga/rdr3_discoveries](https://github.com/femga/rdr3_discoveries) and [Halen84/RDR3-Native-Flags-And-Enums](https://github.com/Halen84/RDR3-Native-Flags-And-Enums).
+- Script opcode table: [maybegreat48/GTA-V-Script-Decompiler](https://github.com/maybegreat48/GTA-V-Script-Decompiler).
+- Text label names: [OpenIV-Team/RAGE-StringsDatabase](https://github.com/OpenIV-Team/RAGE-StringsDatabase).
+- Model lookup signature: the RDR2Playground project.
 
-## Licencia
+## License
 
-Este proyecto aún no incluye una licencia de reutilización. Todos los derechos del código fuente quedan reservados por su autor mientras no se publique una licencia explícita. Los componentes externos conservan sus propias condiciones.
+This project does not include a reuse license yet. All rights to the source code are reserved by its author until an explicit license is published. External components keep their own terms.
