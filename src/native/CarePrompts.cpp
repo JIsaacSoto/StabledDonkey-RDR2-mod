@@ -23,7 +23,7 @@
 // the mod's own prompts instead:
 //   - on foot, inside the donkey's lock-on menu, with the vanilla keys
 //     (the greyed vanilla prompts are hidden on the donkey), and
-//   - "Cepillar burro" / "Cepillar mula" while riding, when the animal is
+//   - a brush prompt while riding a donkey or a mule, when the animal is
 //     dirty and standing still (the TAB-wheel brush is greyed on both; the
 //     mules keep their working vanilla on-foot prompts).
 // Brush and feed do not reimplement anything: they start the vanilla
@@ -59,6 +59,18 @@ namespace StabledDonkey::CarePrompts
         constexpr uint64_t NATIVE_TASK_ANIMAL_INTERACTION = 0xCD181A959CFDD7F4;
         constexpr uint64_t NATIVE_IS_ANIMAL_INTERACTION_RUNNING = 0x7FC84E85D98F063D;
         constexpr uint64_t NATIVE_GET_PLAYER_INTERACTION_TARGET_ENTITY = 0x3EE1F7A8C32F24E1;
+        constexpr uint64_t NATIVE_DOES_TEXT_LABEL_EXIST = 0x73C258C68D6F55B6;
+        constexpr uint64_t NATIVE_GET_LABEL_TEXT = 0x3429670F9B9EF2D3; // _GET_LABEL_TEXT_2
+        constexpr uint64_t NATIVE_GET_CURRENT_LANGUAGE = 0xDB917DA5C6835FCC;
+
+        // Prompt texts come from the game's own text labels (global.gxt2), so
+        // they follow the game language. Key names: OpenIV-Team/
+        // RAGE-StringsDatabase RDR2/TextKeys/global.txt; INTERACT_HORSE reads
+        // "Pat" in the decompiled scripts (beat_spooked_horse.c). The English
+        // fallback is used only if a label is missing.
+        constexpr const char *LABEL_PAT = "INTERACT_HORSE";
+        constexpr const char *LABEL_BRUSH = "BRUSH_HORSE";
+        constexpr const char *LABEL_FEED = "FEED_HORSE";
 
         // player_horse.c (1491.50) item-use state machine, Global_1900372:
         //   [0] state: 0 reset, 1 idle, 2..6 running, 7 cleanup
@@ -80,11 +92,47 @@ namespace StabledDonkey::CarePrompts
         constexpr ULONGLONG INVENTORY_POLL_MS = 500;
         constexpr ULONGLONG HIDE_REFRESH_MS = 250;
 
-        // player_horse.c func_789: horse foods in vanilla preference order.
+        // player_horse.c func_789: horse foods in vanilla preference order,
+        // then the herbs it falls back to when none is left (all of them pass
+        // its horse-edible check, func_724).
         const char *const FOODS[] = {
-            "CONSUMABLE_HAYCUBE", "CONSUMABLE_OAT_CAKES", "CONSUMABLE_APPLE",      "CONSUMABLE_BEETS",
-            "CONSUMABLE_PEAR",    "CONSUMABLE_PEACH",     "CONSUMABLE_CELERY",     "CONSUMABLE_CARROT",
-            "CONSUMABLE_CORN",    "CONSUMABLE_PEPPERMINT", "CONSUMABLE_SUGARCUBE",
+            "CONSUMABLE_HAYCUBE",
+            "CONSUMABLE_OAT_CAKES",
+            "CONSUMABLE_APPLE",
+            "CONSUMABLE_BEETS",
+            "CONSUMABLE_PEAR",
+            "CONSUMABLE_PEACH",
+            "CONSUMABLE_CELERY",
+            "CONSUMABLE_CARROT",
+            "CONSUMABLE_CORN",
+            "CONSUMABLE_PEPPERMINT",
+            "CONSUMABLE_SUGARCUBE",
+            "CONSUMABLE_HERB_ALASKAN_GINSENG",
+            "CONSUMABLE_HERB_AMERICAN_GINSENG",
+            "CONSUMABLE_HERB_BAY_BOLETE",
+            "CONSUMABLE_HERB_BLACK_BERRY",
+            "CONSUMABLE_HERB_BLACK_CURRANT",
+            "CONSUMABLE_HERB_BURDOCK_ROOT",
+            "CONSUMABLE_HERB_CHANTERELLES",
+            "CONSUMABLE_HERB_CREEPING_THYME",
+            "CONSUMABLE_HERB_DESERT_SAGE",
+            "CONSUMABLE_HERB_HUMMINGBIRD_SAGE",
+            "CONSUMABLE_HERB_GOLDEN_CURRANT",
+            "CONSUMABLE_HERB_OLEANDER_SAGE",
+            "CONSUMABLE_HERB_PARASOL_MUSHROOM",
+            "CONSUMABLE_HERB_RAMS_HEAD",
+            "CONSUMABLE_HERB_RED_RASPBERRY",
+            "CONSUMABLE_HERB_RED_SAGE",
+            "CONSUMABLE_HERB_WILD_FEVERFEW",
+            "CONSUMABLE_HERB_WILD_MINT",
+            "CONSUMABLE_HERB_GINSENG",
+            "CONSUMABLE_HERB_SAGE",
+            "CONSUMABLE_HERB_WINTERGREEN_BERRY",
+            "CONSUMABLE_HERB_CURRANT",
+            "CONSUMABLE_HERB_OREGANO",
+            "CONSUMABLE_HERB_WILD_CARROTS",
+            "CONSUMABLE_HERB_COMMON_BULRUSH",
+            "CONSUMABLE_HERB_ENGLISH_MACE",
         };
 
         struct Prompt
@@ -108,6 +156,40 @@ namespace StabledDonkey::CarePrompts
         Hash Joaat(const char *text)
         {
             return invoke<Hash>(NATIVE_GET_HASH_KEY, text);
+        }
+
+        bool LabelExists(const char *label)
+        {
+            return invoke<BOOL>(NATIVE_DOES_TEXT_LABEL_EXIST, label) != 0;
+        }
+
+        std::string GameText(const char *label, const char *fallback)
+        {
+            if (LabelExists(label))
+            {
+                const char *text = invoke<const char *>(NATIVE_GET_LABEL_TEXT, label);
+                if (text && *text)
+                    return text;
+            }
+            return fallback;
+        }
+
+        // Once per launch: the game language and the texts of the labels in
+        // use or under study (vanilla horse prompts), for the log.
+        void LogGameTexts()
+        {
+            static bool logged = false;
+            if (logged)
+                return;
+            logged = true;
+            Log("Care: game language=%d", invoke<int>(NATIVE_GET_CURRENT_LANGUAGE));
+            for (const char *label : {LABEL_PAT, LABEL_BRUSH, LABEL_FEED, "CALM_HORSE", "REMOVE_SADDLE",
+                                      "MOUNT_HORSE", "BREED_DONKEY", "BREED_MULE", "BREED_MULE_PAINTED"})
+            {
+                const bool exists = LabelExists(label);
+                Log("Care: label %s exists=%d text=\"%s\"", label, exists ? 1 : 0,
+                    exists ? GameText(label, "").c_str() : "");
+            }
         }
 
         bool IsValid(const Prompt &prompt)
@@ -177,9 +259,10 @@ namespace StabledDonkey::CarePrompts
                 return;
             g_groupPed = donkey;
             g_groupId = groupId;
-            Create(g_pat, "Acariciar", g_config.careInputPat, groupId);
-            Create(g_brush, "Cepillar", g_config.careInputBrush, groupId);
-            Create(g_feed, "Alimentar", g_config.careInputFeed, groupId);
+            LogGameTexts();
+            Create(g_pat, GameText(LABEL_PAT, "Pat").c_str(), g_config.careInputPat, groupId);
+            Create(g_brush, GameText(LABEL_BRUSH, "Brush").c_str(), g_config.careInputBrush, groupId);
+            Create(g_feed, GameText(LABEL_FEED, "Feed").c_str(), g_config.careInputFeed, groupId);
         }
 
         // Hides the greyed vanilla prompts on the donkey so ours can use the
@@ -373,7 +456,9 @@ namespace StabledDonkey::CarePrompts
             if (!IsValid(g_mountedBrush) || isMule != g_mountedBrushForMule)
             {
                 g_mountedBrushForMule = isMule;
-                Create(g_mountedBrush, isMule ? "Cepillar mula" : "Cepillar burro", g_config.careInputMountedBrush, 0);
+                LogGameTexts();
+                Create(g_mountedBrush, GameText(LABEL_BRUSH, isMule ? "Brush mule" : "Brush donkey").c_str(),
+                       g_config.careInputMountedBrush, 0);
             }
 
             const int dirt = mount ? invoke<int>(NATIVE_GET_ATTRIBUTE_BASE_RANK, mount, ATTRIBUTE_DIRT) : 0;

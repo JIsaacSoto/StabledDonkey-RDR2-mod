@@ -15,13 +15,11 @@ namespace StabledDonkey
         bool patchDonkey = true;
         // Same for the mule and the painted mule: bonding, care, stats.
         bool patchMules = true;
-        // Let the stable store a mule by mapping it to the HORSE_DONKEY
-        // catalog item (rewrites the multiplayer-only mangy horse case of the
-        // model -> item functions; no HORSE_MULE item exists). Only one mule
-        // model fits: "mule" (A_C_HorseMule_01) or "painted"
-        // (A_C_HorseMulePainted_01, only seen in one mission).
+        // Let the stable store both mules by mapping them to the HORSE_DONKEY
+        // catalog item (the multiplayer-only mangy horse case of the model ->
+        // item functions becomes a mule / painted mule switch; no HORSE_MULE
+        // item exists).
         bool stableMules = true;
-        std::string stableMuleModel = "mule";
 
         // The engine greys out the vanilla pat / brush / feed prompts on the
         // donkey, so the mod adds its own (lock-on menu on foot) and a brush

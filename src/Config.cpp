@@ -59,7 +59,6 @@ namespace StabledDonkey
         patchDonkey = ReadBool("PatchDonkey", patchDonkey);
         patchMules = ReadBool("PatchMules", patchMules);
         stableMules = ReadBool("StableMules", stableMules);
-        ReadString("StableMuleModel", stableMuleModel);
         carePrompts = ReadBool("CarePrompts", carePrompts);
         careMuleOnFoot = ReadBool("CareMuleOnFoot", careMuleOnFoot);
         ReadString("CareInputPat", careInputPat);
@@ -75,9 +74,9 @@ namespace StabledDonkey
 
     void Config::LogValues() const
     {
-        Log("Config: ini=%s found=%d PatchDonkey=%d PatchMules=%d CarePrompts=%d CareMuleOnFoot=%d StableMules=%d StableMuleModel=%s",
+        Log("Config: ini=%s found=%d PatchDonkey=%d PatchMules=%d CarePrompts=%d CareMuleOnFoot=%d StableMules=%d",
             g_iniPath.c_str(), g_iniFound ? 1 : 0, patchDonkey ? 1 : 0, patchMules ? 1 : 0, carePrompts ? 1 : 0,
-            careMuleOnFoot ? 1 : 0, stableMules ? 1 : 0, stableMuleModel.c_str());
+            careMuleOnFoot ? 1 : 0, stableMules ? 1 : 0);
         Log("Config: CareInputPat=%s CareInputBrush=%s CareInputFeed=%s CareInputMountedBrush=%s CareMaxDistance=%.2f CareMountedBrushMinDirt=%d HideVanillaPromptTypes=%s HideVanillaPromptTypesMule=%s CarePromptPriority=%d",
             careInputPat.c_str(), careInputBrush.c_str(), careInputFeed.c_str(), careInputMountedBrush.c_str(),
             careMaxDistance, careMountedBrushMinDirt, hideVanillaPromptTypes.c_str(),
