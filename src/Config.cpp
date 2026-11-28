@@ -75,6 +75,9 @@ namespace StabledDonkey
         superDonkStamina = ReadInt("SuperDonkStamina", superDonkStamina);
         superDonkSpeed = ReadInt("SuperDonkSpeed", superDonkSpeed);
         superDonkAcceleration = ReadInt("SuperDonkAcceleration", superDonkAcceleration);
+        saddlePrompts = ReadBool("SaddlePrompts", saddlePrompts);
+        ReadString("SaddleInput", saddleInput);
+        saddleTempHorse = ReadBool("SaddleTempHorse", saddleTempHorse);
     }
 
     void Config::LogValues() const
@@ -88,5 +91,7 @@ namespace StabledDonkey
             hideVanillaPromptTypesMule.c_str(), carePromptPriority);
         Log("Config: SuperDonkMode=%d SuperDonkHealth=%d SuperDonkStamina=%d SuperDonkSpeed=%d SuperDonkAcceleration=%d",
             superDonkMode ? 1 : 0, superDonkHealth, superDonkStamina, superDonkSpeed, superDonkAcceleration);
+        Log("Config: SaddlePrompts=%d SaddleInput=%s SaddleTempHorse=%d", saddlePrompts ? 1 : 0, saddleInput.c_str(),
+            saddleTempHorse ? 1 : 0);
     }
 }

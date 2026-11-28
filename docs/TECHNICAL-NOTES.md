@@ -93,7 +93,7 @@ Repeating actions (v0.7.0). Up to v0.6.0 the prompts stayed greyed after each ac
   - The stable script's own mule check (`func_2186`) is left intact. It sits in the same memory region as the stable's marker string, unlike the `player_horse` ones.
 - **Uninstalling (tested 2026-11-26):** a save with the mule as the main horse and a donkey, the painted mule and a horse in the stable. Without the mod, the "Manage Horses" menu is empty (hypothesis: the stable script cannot draw those slots and aborts the whole list). The main mule spawns, its original interactions work without giving bond, its card is that of a plain animal and the bond drops to level 1. Reinstalling the mod makes everything work again (except the painted mule, as before v0.5.0).
 - When the player has no main horse left, `player_horse` uses a default horse (`func_970`: chestnut Tennessee Walker). That is not the mod.
-- "Remove Saddle" (H, `INPUT_SADDLE_TRANSFER`) is an engine prompt with no equivalent native or task. `player_horse` only receives `EVENT_SADDLE_TRANSFER` once it has happened. It does not appear even with the mule as the main horse, so it does not depend on the skeleton.
+- "Remove Saddle" (H, `INPUT_SADDLE_TRANSFER`) is an engine prompt with no equivalent native or task. It does not appear even with the mule as the main horse, so it does not depend on the skeleton. Since v0.8.0 the mod has its own prompts (see "Saddle").
 
 ## SuperDonkMode (v0.6.0, `src/native/SuperDonk.cpp`)
 
@@ -105,6 +105,18 @@ Repeating actions (v0.7.0). Up to v0.6.0 the prompts stayed greyed after each ac
   - The TAB wheel and "Show Info" show the boosted stats; the stable and `Player → Horse` show the breed's defaults.
   - The donkey takes the four ranks (speed and acceleration apply), but its max health (251) and max stamina (300) do not change. Galloping drains about 6.3 stamina points every 5 s on every animal. What tires the animal is the normalised stamina (`_GET_PED_STAMINA_NORMALIZED`), whose hidden range is about 60 on a rank 2 horse, about 100 on a rank 4 mule and about 104–107 on the donkey **with or without** the boost. So the donkey's stamina is fixed at about rank 4 and its health is above any horse rank (rank 9 = 240).
   - There is no native to set max stamina. `_SET_STAMINA_DEPLETION_MULTIPLIER` could emulate more stamina on the donkey, but `player_horse` rewrites it on the player's horse from the tack; left out.
+
+## Saddle (v0.8.0, `src/native/SaddlePrompts.cpp`)
+
+- On horses, "Remove Saddle" and placing a carried saddle are engine prompts (`INPUT_SADDLE_TRANSFER`, labels `REMOVE_SADDLE` and `PLACE_SADDLE`). The engine plays the animation, creates the bundle (`P_CS_SADDLEBUNDLE01X`, carriable `CARRIABLE_SADDLE_BUNDLE`) and sends `EVENT_SADDLE_TRANSFER` {player, horse, type, bundle, flags}; `player_horse` `func_153` then moves the saddle. The engine never offers them on the donkey or the mules.
+- Ruled out in tests (2026-11-27): saddle and active horse, the 603 ped config flags, carrying flags (`9`, `13`; also copied from a horse), `META_HORSE_SADDLE_ONLY`, tack shop items, prompt modes for `PP_HORSETRANSFER` (6), and the model-info words shared by 9 horse breeds (copied into the mules). `RDR2.exe` has no donkey or mule hash constants. There is no native to send script events.
+- So the mod has its own hold prompts (H) with the game's labels (`PLACE_SADDLE` was found by reading every `global.gxt2` key hash with `GET_STRING_FROM_HASH_KEY`), and repeats the scripts:
+  - Remove (main horse, slot 0): the bundle next to the player as the stable does (`shop_horse_shop_sp` `func_799`), the tack stripped by category (`func_468`), no saddle horse, saddle slot `-1` and saddle-off flag `1`, the bundle in `Global_1900383.f_393`, `TASK_CARRIABLE(bundle, CARRIABLE_SADDLE_BUNDLE, player, 0, 0)`. The game's "Saddle" prompt then works on any horse, and an abandoned saddle comes back as in the game.
+  - Place: the equip branch of `func_153`: bundle deleted, saddle slot `0`, saddle horse, carrying flag 9, and the player's tack read from the inventory (`SLOTID_CARRIED_HORSE_EQUIPMENT` → `SLOTID_HORSE_*`, `func_355`) and applied with `_APPLY_SHOP_ITEM_TO_PED` (`func_696`).
+  - Temp horse (slot 1): first what `func_116(1, 0)` does. It swaps the horse items of `SLOTID_ACTIVE_HORSE` and slot 1 (`0xCE638816`) in the player's inventory (`func_408` → `func_722`: `_INVENTORY_SWAP_INVENTORY_ITEM`, `_INVENTORY_EQUIP_ITEM_WITH_GUID`), the slot data (`Global_40.f_1095.f_1[0/1]`, 436 slots each) and the slot peds (`Global_1900383[0/1]`, 45 slots), sets the active and temp horse, and drops both blips, which `player_horse` makes again (`func_66`). Nothing is written unless every inventory read and check passes. Not done: an empty slot 0 (the game then moves the item, `func_721`) and an animal outside the horse slots (`func_475` would create a new horse).
+- The globals are checked first: both horse-slot arrays must hold 7 entries (`Global_1136`, `Global_1900383`), else the saddle prompts stay off.
+- No animation: `Interaction_StowSaddle` (`TASK_ANIMAL_INTERACTION`) and `TASK_PLACE_CARRIED_ENTITY_ON_MOUNT` do nothing with the saddle bundle (the task ends at once, status 8).
+- Tested in game (2026-11-27): donkey, mule and painted mule; horse ↔ donkey and horse ↔ painted mule; temp → main with a bonded wild horse; save and load.
 
 ## Natives and globals used
 
@@ -126,3 +138,11 @@ Repeating actions (v0.7.0). Up to v0.6.0 the prompts stayed greyed after each ac
 | `GET_PED_MAX_HEALTH` | `0x4700A416E8324EF3` |
 | `_GET_PED_MAX_STAMINA` | `0xCB42AFE2B613EE55` |
 | `player_horse` item-use global | `Global_1900372` |
+| `TASK_CARRIABLE` | `0xF0B4F759F35CC7F5` |
+| `_GET_SADDLE_HORSE_FOR_PLAYER` / `_SET_PED_AS_SADDLE_HORSE_FOR_PLAYER` | `0xB48050D326E9A2F3` / `0xD2CB0FB0FDCB473D` |
+| `_SET_PED_ACTIVE_PLAYER_HORSE` / `SET_PED_AS_TEMP_PLAYER_HORSE` | `0x8FBF9EDB378CCB8C` / `0x227B06324234FB09` |
+| `REMOVE_SHOP_ITEM_FROM_PED_BY_CATEGORY` / `_APPLY_SHOP_ITEM_TO_PED` | `0xDF631E4BCE1B1FC4` / `0xD3A7B003ED343FD9` |
+| `INVENTORY_GET_GUID_FROM_ITEMID` | `0x886DFD3E185C8A89` |
+| `_INVENTORY_SWAP_INVENTORY_ITEM` / `_INVENTORY_EQUIP_ITEM_WITH_GUID` | `0xF2753D691BCDA314` / `0x734311E2852760D0` |
+| `IS_PED_CARRYING_SOMETHING` | `0xA911EE21EDF69DAF` |
+| Saddle globals (slot, off flag, bundle, horse slots) | `Global_4189`, `Global_4190`, `Global_1900776`, `Global_1137` (+436), `Global_1900384` (+45) |

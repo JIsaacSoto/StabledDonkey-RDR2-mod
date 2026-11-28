@@ -2,6 +2,27 @@
 
 **English** | [Español](CHANGELOG.es.md)
 
+## v0.8.0 — 2026-11-27
+
+Remove Saddle and Saddle on the donkey and the mules.
+
+### Added
+
+- **Remove Saddle (H, hold)** on the main donkey or mule, in its lock-on menu. The player carries the saddle as with a horse, and the game's own "Saddle" prompt puts it on any horse.
+- **Saddle (H, hold)** with a saddle in the hands, next to the donkey or mule: the player's saddle and tack from the inventory, as the game does on horses. The saddlebag items travel with the saddle.
+- Saddling the donkey or mule that is the temp horse makes it the main horse, and the old main horse the temp horse, as the game does with horses. Kept on save load (`SaddleTempHorse=1`).
+- New options: `SaddlePrompts`, `SaddleInput`, `SaddleTempHorse`. The prompt texts are the game's labels `REMOVE_SADDLE` and `PLACE_SADDLE`.
+- Tested in game: donkey, mule and painted mule; saddle from a horse to a donkey or mule and back; temp horse to main; save and load.
+- Checked: pelts and carcasses can be stowed on the donkey and the mule, several at once, as on a horse.
+
+### Changed
+
+- Pat, Brush and Feed are not offered while the player carries something (a saddle, a pelt, a body), as on horses.
+
+### Known limitations
+
+- No saddle animation (on horses the engine plays a cutscene). A donkey or mule outside the player's horse slots cannot be saddled in the field, nor the temp one when there is no main horse; the stable works in both cases.
+
 ## v0.7.0 — 2026-11-27
 
 On-foot care without locking on again.

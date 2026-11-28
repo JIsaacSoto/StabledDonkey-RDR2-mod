@@ -48,6 +48,16 @@ namespace StabledDonkey
         // Priority of the mod's prompts (ePromptPriority: 0 low, 1 normal,
         // 2 high, 3 mission critical).
         int carePromptPriority = 2;
+        // The engine never offers "Remove Saddle" or placing a carried saddle
+        // on the donkey or the mules, so the mod adds both (lock-on menu,
+        // hold the key). Removing: from the main horse (horse slot 0).
+        bool saddlePrompts = true;
+        std::string saddleInput = "INPUT_SADDLE_TRANSFER";
+        // Placing the saddle on a donkey / mule that is the temp horse
+        // (horse slot 1) makes it the main horse, as the vanilla prompt does
+        // on horses (the horse slots and the horse items in the player's
+        // inventory are swapped).
+        bool saddleTempHorse = true;
 
         // SuperDonkMode: optional boost of the base attribute ranks of the
         // donkey / mule the player rides (internal ranks, as the natives take

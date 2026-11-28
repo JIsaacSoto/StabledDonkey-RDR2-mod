@@ -2,6 +2,27 @@
 
 [English](CHANGELOG.md) | **Español**
 
+## v0.8.0 — 2026-11-27
+
+"Quitar silla" y "Ensillar" en el burro y las mulas.
+
+### Añadido
+
+- **"Quitar silla" (H, mantener)** en el burro o la mula principal, en su menú de fijado. El jugador carga la silla como con un caballo, y el botón "Ensillar" del propio juego la pone en cualquier caballo.
+- **"Ensillar" (H, mantener)** con una silla en las manos, junto al burro o la mula: la silla y los accesorios del jugador salen del inventario, como hace el juego con los caballos. Los objetos de las alforjas viajan con la silla.
+- Ensillar el burro o la mula que es la montura temporal lo convierte en montura principal, y la principal anterior pasa a temporal, como hace el juego con los caballos. Se conserva al cargar la partida (`SaddleTempHorse=1`).
+- Opciones nuevas: `SaddlePrompts`, `SaddleInput`, `SaddleTempHorse`. Los textos de los botones son las etiquetas del juego `REMOVE_SADDLE` y `PLACE_SADDLE`.
+- Probado en juego: burro, mula y mula pintada; silla de un caballo a un burro o una mula y de vuelta; montura temporal a principal; guardar y cargar.
+- Comprobado: se pueden subir pieles y cadáveres de animales al burro y la mula, varios a la vez, como en un caballo.
+
+### Cambiado
+
+- Mientras el jugador carga algo (una silla, una piel, un cuerpo) no se ofrecen Acariciar, Cepillar ni Alimentar, como en los caballos.
+
+### Limitaciones conocidas
+
+- No hay animación al quitar o poner la silla (en los caballos el motor lanza una cinemática). No se puede ensillar en el campo un burro o una mula fuera de las monturas del jugador, ni la temporal cuando no hay montura principal; en los dos casos funciona el establo.
+
 ## v0.7.0 — 2026-11-27
 
 Cuidados a pie sin volver a fijar al animal.

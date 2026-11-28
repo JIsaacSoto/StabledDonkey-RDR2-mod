@@ -6,7 +6,7 @@
 
 StabledDonkey hace que el burro y la mula funcionen como una raza de caballo más, usando los propios sistemas del juego. No reemplaza sus modelos por caballos ni modifica archivos del juego: todos los cambios se aplican en memoria al arrancar.
 
-## Qué hace (v0.7.0)
+## Qué hace (v0.8.0)
 
 ### Burro
 
@@ -27,6 +27,16 @@ StabledDonkey hace que el burro y la mula funcionen como una raza de caballo má
 - **Cuidados a pie:** **Acariciar (G)**, **Cepillar (B)** y **Alimentar (R)** del mod, porque los originales de la mula a veces salen grises. Acariciar está disponible desde el principio; cepillar y alimentar piden vínculo.
 - **Cuidados montado:** acariciar y alimentar como un caballo, y **"Cepillar" (R)** cuando está sucia.
 
+### Silla (burro y mulas)
+
+- **Quitar silla (H, mantener):** fija a tu burro o mula principal para quitarle la silla. La llevas en las manos, como con un caballo, y puedes ponérsela a cualquier caballo con el botón del propio juego.
+- **Ensillar (H, mantener):** con una silla en las manos, junto a tu burro o mula, queda ensillado con tu silla y tus accesorios (los de tu inventario, como en un caballo).
+- **La montura temporal pasa a principal:** ensillar el burro o la mula que es tu montura temporal lo convierte en tu montura principal, y la principal anterior pasa a temporal, como hace el juego con los caballos. Se conserva al cargar la partida.
+- Los objetos de las alforjas viajan con la silla. Mientras cargas algo no se ofrecen Acariciar, Cepillar ni Alimentar.
+- **Carga:** se pueden subir pieles y cadáveres de animales al burro o la mula, varios a la vez, como en un caballo.
+- Los textos de los botones son los del propio juego ("Quitar silla" y "Ensillar").
+- No hay animación: la silla se quita y se pone al momento. En los caballos el motor lanza una breve cinemática que un mod no puede iniciar.
+
 ### SuperDonkMode (opcional)
 
 Desactivado por defecto (`SuperDonkMode=0`). Al activarlo, el burro o la mula que montas mejora sus estadísticas con las funciones de atributos del propio juego, como un mod de mejora. Por defecto recibe la velocidad y la aceleración del Árabe blanco y la salud y la energía del Turkmeno bayo oscuro; todos los valores se pueden cambiar en el `.ini`.
@@ -40,7 +50,7 @@ Desactivado por defecto (`SuperDonkMode=0`). Al activarlo, el burro o la mula qu
 
 - En el establo, el título de las dos mulas dice "Burro": el juego no tiene un item de catálogo para las mulas y el mod les da el del burro. La raza sí dice "Mula".
 - El cepillo del menú TAB sale gris en burro y mula (en el caballo funciona); usa "Cepillar" montado.
-- La opción "Quitar silla" no aparece en el burro ni en la mula, ni siquiera como montura principal.
+- No se puede ensillar en el campo un burro o una mula que no sea ni tu montura principal ni la temporal (habría que crear un caballo nuevo en tu partida). Tampoco tu burro o mula temporal si no tienes montura principal, por ejemplo después de venderla. En los dos casos, guárdalo en el establo y ensíllalo ahí.
 - En "Mostrar información", el campo de pelaje del burro y la mula muestra el texto `~lp~` (no tienen texto de pelaje en el juego). Es solo estético.
 - SuperDonkMode no puede subir la salud ni la energía del burro (ver arriba).
 - Compatibilidad con Stable Expansion: no probada.
@@ -88,6 +98,9 @@ El mod no modifica archivos del juego. Lo único que queda en tu partida es lo q
 | `HideVanillaPromptTypes` | `5,44,47,49,50,52` | Botones del juego que se ocultan en el burro. |
 | `HideVanillaPromptTypesMule` | `49,50` | Botones del juego que se ocultan en la mula (solo cepillar y alimentar). |
 | `CarePromptPriority` | `2` | Prioridad de los botones del mod frente a los del juego (0–3). |
+| `SaddlePrompts` | `1` | Botones del mod "Quitar silla" y "Ensillar" en el burro y las mulas. |
+| `SaddleInput` | `INPUT_SADDLE_TRANSFER` (H) | Control de los dos botones de silla (mantener). |
+| `SaddleTempHorse` | `1` | Ensillar tu burro o mula temporal lo convierte en montura principal (0 = solo tu montura principal). |
 | `SuperDonkMode` | `0` | Mejora de estadísticas del burro y las mulas que montas (1 = activado). |
 | `SuperDonkHealth` / `SuperDonkStamina` | `6` / `4` | Rango de salud y energía (0–9; el establo muestra rango + 1). Por defecto: Turkmeno bayo oscuro. Solo mulas. `-1` = sin cambios. |
 | `SuperDonkSpeed` / `SuperDonkAcceleration` | `5` / `5` | Rango de velocidad y aceleración (0–9). Por defecto: Árabe blanco. `-1` = sin cambios. |
@@ -113,6 +126,7 @@ Resumen; el detalle está en [docs/NOTAS-TECNICAS.md](docs/NOTAS-TECNICAS.md) ([
 - `src/native/ModelInfoPatch.cpp`: escribe en los datos del modelo del burro y de las mulas, en memoria, los valores del caballo (tipo de animal y otros campos). Los offsets se descubren comparando burro, mula y caballo.
 - `src/native/ScriptPatch.cpp`: quita de los scripts cargados (`player_horse`, `shop_horse_shop_sp`) las comprobaciones explícitas "¿es un burro / una mula?" y da a las dos mulas un item de catálogo para el establo. Respeta los datos de raza y catálogo que el juego usa para guardar y restaurar a los animales.
 - `src/native/CarePrompts.cpp`: los botones de cuidado. Cepillar y alimentar lanzan la misma secuencia de uso de objetos del juego.
+- `src/native/SaddlePrompts.cpp`: los botones "Quitar silla" y "Ensillar". Repiten lo que hacen los scripts del juego al quitar o poner una silla, incluido el cambio entre montura temporal y principal.
 - `src/native/SuperDonk.cpp`: SuperDonkMode, la mejora opcional de estadísticas.
 - `src/main.cpp`: arranque, bucle principal y registro de la montura y del vínculo.
 
