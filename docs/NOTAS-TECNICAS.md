@@ -93,7 +93,7 @@ Repetir acciones (v0.7.0). Hasta la v0.6.0 los botones quedaban en gris tras cad
   - La comprobación de mula del propio script del establo (`func_2186`) se deja intacta. Está en la misma región de memoria que el texto marcador del establo, a diferencia de las de `player_horse`.
 - **Desinstalar (probado 2026-11-26):** partida con la mula como montura principal y un burro, la mula pintada y un caballo en el establo. Sin el mod, el menú "Gestionar caballos" sale vacío (hipótesis: el script del establo no sabe pintar esos huecos y aborta la lista completa). La mula principal aparece, sus interacciones originales funcionan sin dar vínculo, su ficha es de animal común y el vínculo baja a nivel 1. Al reinstalar el mod todo vuelve a funcionar (salvo la mula pintada, como antes de la v0.5.0).
 - Cuando el jugador se queda sin montura principal, `player_horse` usa un caballo por defecto (`func_970`: Tennessee Walker castaño). No es cosa del mod.
-- "Quitar silla" (H, `INPUT_SADDLE_TRANSFER`) es un botón del motor sin native ni tarea equivalente. `player_horse` solo recibe `EVENT_SADDLE_TRANSFER` cuando ya ocurrió. No aparece ni con la mula como montura principal, así que no depende del esqueleto.
+- "Quitar silla" (H, `INPUT_SADDLE_TRANSFER`) es un botón del motor sin native ni tarea equivalente. No aparece ni con la mula como montura principal, así que no depende del esqueleto. Desde la v0.8.0 el mod tiene sus propios botones (ver "Silla").
 
 ## SuperDonkMode (v0.6.0, `src/native/SuperDonk.cpp`)
 
@@ -105,6 +105,18 @@ Repetir acciones (v0.7.0). Hasta la v0.6.0 los botones quedaban en gris tras cad
   - El menú TAB y "Mostrar información" muestran las estadísticas mejoradas; el establo y `Personaje → Caballo` muestran las de fábrica de la raza.
   - El burro acepta los cuatro rangos (velocidad y aceleración se aplican), pero su salud máxima (251) y su energía máxima (300) no cambian. Al galopar todos gastan unos 6,3 puntos de energía cada 5 s. Lo que cansa al animal es la energía normalizada (`_GET_PED_STAMINA_NORMALIZED`), cuyo rango oculto es de unos 60 en un caballo de rango 2, unos 100 en una mula de rango 4 y unos 104–107 en el burro **con o sin** el aumento. Es decir, la energía del burro está fija en más o menos un rango 4, y su salud supera la de cualquier rango de caballo (rango 9 = 240).
   - No hay native para fijar la energía máxima. `_SET_STAMINA_DEPLETION_MULTIPLIER` podría emular más energía en el burro, pero `player_horse` la reescribe en la montura del jugador según el equipo; se dejó fuera.
+
+## Silla (v0.8.0, `src/native/SaddlePrompts.cpp`)
+
+- En los caballos, "Quitar silla" y poner una silla cargada son botones del motor (`INPUT_SADDLE_TRANSFER`, etiquetas `REMOVE_SADDLE` y `PLACE_SADDLE`). El motor lanza la animación, crea el fardo (`P_CS_SADDLEBUNDLE01X`, cargable `CARRIABLE_SADDLE_BUNDLE`) y envía `EVENT_SADDLE_TRANSFER` {jugador, caballo, tipo, fardo, flags}; después `player_horse` `func_153` mueve la silla. El motor nunca los ofrece en el burro ni en las mulas.
+- Descartado en pruebas (2026-11-27): montura con silla y montura activa, los 603 flags de configuración del ped, flags de carga (`9`, `13`; también copiados de un caballo), `META_HORSE_SADDLE_ONLY`, objetos de tienda del equipo, modos de prompt de `PP_HORSETRANSFER` (6) y las palabras de datos de modelo comunes a 9 razas de caballo (copiadas a las mulas). `RDR2.exe` no contiene constantes con los hashes del burro o la mula. No existe native para enviar eventos de script.
+- Por eso el mod tiene sus propios botones de mantener (H) con las etiquetas del juego (`PLACE_SADDLE` se encontró leyendo con `GET_STRING_FROM_HASH_KEY` todos los hashes de claves de `global.gxt2`), y repite los scripts:
+  - Quitar (montura principal, ranura 0): el fardo junto al jugador como hace el establo (`shop_horse_shop_sp` `func_799`), el equipo quitado por categoría (`func_468`), sin montura con silla, ranura de silla `-1` y flag de silla quitada `1`, el fardo en `Global_1900383.f_393`, `TASK_CARRIABLE(fardo, CARRIABLE_SADDLE_BUNDLE, jugador, 0, 0)`. Después el botón "Ensillar" del juego funciona en cualquier caballo, y una silla abandonada vuelve como en el juego.
+  - Poner: la rama de equipar de `func_153`: fardo borrado, ranura de silla `0`, montura con silla, flag de carga 9, y el equipo del jugador leído del inventario (`SLOTID_CARRIED_HORSE_EQUIPMENT` → `SLOTID_HORSE_*`, `func_355`) y aplicado con `_APPLY_SHOP_ITEM_TO_PED` (`func_696`).
+  - Montura temporal (ranura 1): primero lo que hace `func_116(1, 0)`. Intercambia los objetos de caballo de `SLOTID_ACTIVE_HORSE` y de la ranura 1 (`0xCE638816`) en el inventario del jugador (`func_408` → `func_722`: `_INVENTORY_SWAP_INVENTORY_ITEM`, `_INVENTORY_EQUIP_ITEM_WITH_GUID`), los datos de las ranuras (`Global_40.f_1095.f_1[0/1]`, 436 casillas cada una) y los peds de las ranuras (`Global_1900383[0/1]`, 45 casillas), fija la montura activa y la temporal, y borra los dos iconos del mapa, que `player_horse` vuelve a crear (`func_66`). No se escribe nada si falla alguna lectura o comprobación del inventario. No implementado: la ranura 0 vacía (el juego entonces mueve el objeto, `func_721`) y un animal fuera de las ranuras de caballo (`func_475` crearía un caballo nuevo).
+- Primero se comprueban los globales: las dos tablas de ranuras de caballo deben tener 7 entradas (`Global_1136`, `Global_1900383`); si no, los botones de silla quedan desactivados.
+- Sin animación: `Interaction_StowSaddle` (`TASK_ANIMAL_INTERACTION`) y `TASK_PLACE_CARRIED_ENTITY_ON_MOUNT` no hacen nada con el fardo de la silla (la tarea termina al instante, estado 8).
+- Probado en juego (2026-11-27): burro, mula y mula pintada; caballo ↔ burro y caballo ↔ mula pintada; temporal → principal con un caballo salvaje con vínculo; guardar y cargar.
 
 ## Natives y globales usados
 
@@ -126,3 +138,11 @@ Repetir acciones (v0.7.0). Hasta la v0.6.0 los botones quedaban en gris tras cad
 | `GET_PED_MAX_HEALTH` | `0x4700A416E8324EF3` |
 | `_GET_PED_MAX_STAMINA` | `0xCB42AFE2B613EE55` |
 | Global de uso de objetos de `player_horse` | `Global_1900372` |
+| `TASK_CARRIABLE` | `0xF0B4F759F35CC7F5` |
+| `_GET_SADDLE_HORSE_FOR_PLAYER` / `_SET_PED_AS_SADDLE_HORSE_FOR_PLAYER` | `0xB48050D326E9A2F3` / `0xD2CB0FB0FDCB473D` |
+| `_SET_PED_ACTIVE_PLAYER_HORSE` / `SET_PED_AS_TEMP_PLAYER_HORSE` | `0x8FBF9EDB378CCB8C` / `0x227B06324234FB09` |
+| `REMOVE_SHOP_ITEM_FROM_PED_BY_CATEGORY` / `_APPLY_SHOP_ITEM_TO_PED` | `0xDF631E4BCE1B1FC4` / `0xD3A7B003ED343FD9` |
+| `INVENTORY_GET_GUID_FROM_ITEMID` | `0x886DFD3E185C8A89` |
+| `_INVENTORY_SWAP_INVENTORY_ITEM` / `_INVENTORY_EQUIP_ITEM_WITH_GUID` | `0xF2753D691BCDA314` / `0x734311E2852760D0` |
+| `IS_PED_CARRYING_SOMETHING` | `0xA911EE21EDF69DAF` |
+| Globales de la silla (ranura, flag de quitada, fardo, ranuras de caballo) | `Global_4189`, `Global_4190`, `Global_1900776`, `Global_1137` (+436), `Global_1900384` (+45) |

@@ -60,6 +60,7 @@ namespace StabledDonkey::CarePrompts
         constexpr uint64_t NATIVE_INVENTORY_ITEM_COUNT = 0xE787F05DFC977BDE;
         constexpr uint64_t NATIVE_TASK_ANIMAL_INTERACTION = 0xCD181A959CFDD7F4;
         constexpr uint64_t NATIVE_GET_PLAYER_INTERACTION_TARGET_ENTITY = 0x3EE1F7A8C32F24E1;
+        constexpr uint64_t NATIVE_IS_PED_CARRYING_SOMETHING = 0xA911EE21EDF69DAF;
         constexpr uint64_t NATIVE_DOES_TEXT_LABEL_EXIST = 0x73C258C68D6F55B6;
         constexpr uint64_t NATIVE_GET_LABEL_TEXT = 0x3429670F9B9EF2D3; // _GET_LABEL_TEXT_2
         constexpr uint64_t NATIVE_GET_CURRENT_LANGUAGE = 0xDB917DA5C6835FCC;
@@ -525,6 +526,10 @@ namespace StabledDonkey::CarePrompts
         const Entity lockOn = LockOnTarget();
         Ped donkey = IsOnFootCareTarget(lockOn) ? lockOn : (IsOnFootCareTarget(trackedDonkey) ? trackedDonkey : 0);
         if (donkey && ENTITY::IS_ENTITY_DEAD(donkey))
+            donkey = 0;
+        // Like on horses, no pat / brush / feed with something in the hands
+        // (a saddle, a pelt, a body).
+        if (donkey && invoke<BOOL>(NATIVE_IS_PED_CARRYING_SOMETHING, player))
             donkey = 0;
         const Ped mount = CareMount(player);
         if (!donkey && g_groupPed)
